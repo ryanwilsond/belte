@@ -385,6 +385,11 @@ internal partial class SourceNamespaceSymbol {
                 }
 
                 foreach (var forwardDirective in forwardDirectives) {
+                    if (basesBeingResolved?.Any(
+                        t => t is ForwardNoteSymbol f && f.forwardDirective == forwardDirective) ?? false) {
+                        continue;
+                    }
+
                     if (forwardDirective.alias is not null) {
                         var identifier = forwardDirective.alias.name.identifier;
                         var location = forwardDirective.alias.name.location;
@@ -430,7 +435,7 @@ internal partial class SourceNamespaceSymbol {
                         var imported = declarationBinder.BindNamespaceOrTypeSymbol(
                             forwardDirective.namespaceOrType,
                             directiveDiagnostics,
-                            basesBeingResolved
+                            basesBeingResolved.Prepend(new ForwardNoteSymbol(forwardDirective))
                         ).namespaceOrTypeSymbol;
 
                         var addDirectiveDiagnostics = true;

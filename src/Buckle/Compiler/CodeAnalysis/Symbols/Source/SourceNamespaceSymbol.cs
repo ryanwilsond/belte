@@ -433,7 +433,6 @@ done:
                     return GetGlobalUsingImports(basesBeingResolved);
 
                 break;
-
             case BaseNamespaceDeclarationSyntax namespaceDecl:
                 if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return Imports.Empty;

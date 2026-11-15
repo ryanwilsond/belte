@@ -62,14 +62,12 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved
     );
 
-    private protected ImmutableDictionary<string, AliasAndForwardDirective> GetForwardedAliasesMap() {
+    private protected ImmutableDictionary<string, AliasAndForwardDirective> GetForwardedAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
         if (_lazyForwardedAliasesMap is null) {
-            // Need to populate this first to check for PE unresolved forwards
-            _ = forwardedAliases;
-
             Interlocked.CompareExchange(
                 ref _lazyForwardedAliasesMap,
-                _next.GetForwardAliasesMap(null),
+                _next.GetForwardAliasesMap(basesBeingResolved),
                 null
             );
         }
@@ -88,7 +86,7 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
         bool diagnose) {
         LookupSymbolInAliases(
             GetUsingAliasesMap(basesBeingResolved),
-            GetForwardedAliasesMap(),
+            GetForwardedAliasesMap(basesBeingResolved),
             originalBinder,
             result,
             name,
@@ -106,7 +104,7 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
         Binder originalBinder) {
         AddLookupSymbolsInfoInAliases(
             GetUsingAliasesMap(null),
-            GetForwardedAliasesMap(),
+            GetForwardedAliasesMap(null),
             result,
             options,
             originalBinder
@@ -115,7 +113,7 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
 
     internal bool IsAlias(string name, ConsList<TypeSymbol> basesBeingResolved) {
         return IsUsingAlias(GetUsingAliasesMap(basesBeingResolved), name) ||
-            IsForwardedAlias(GetForwardedAliasesMap(), name);
+            IsForwardedAlias(GetForwardedAliasesMap(basesBeingResolved), name);
     }
 
     private protected sealed override SourceDataContainerSymbol LookupLocal(SyntaxToken nameToken) {

@@ -15,6 +15,8 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder {
         private readonly BelteSyntaxNode _declarationSyntax;
         private ImmutableArray<NamespaceOrTypeAndUsingDirective> _lazyUsings;
         private ImmutableArray<NamespaceOrTypeAndForwardDirective> _lazyForwards;
+        private ImmutableArray<AliasAndForwardDirective> _lazyForwardAliases;
+        private ImmutableArray<AliasAndForwardDirective> _lazyForwardUnresolvedAliases;
         private ImmutableDictionary<ForwardDirectiveSyntax, SyntaxReference> _lazyForwardOrigins;
         private ConcurrentDictionary<AliasAndForwardDirective, ForwardDirectiveSyntax> _lazyUnresolvedForwardsSyntax;
         private ConcurrentSet<AliasAndForwardDirective> _lazyForwardsNeedingMapping;
@@ -101,74 +103,113 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder {
 
         internal override ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
             ConsList<TypeSymbol> basesBeingResolved) {
-            var usings = GetUsings(basesBeingResolved);
-            var builder = ArrayBuilder<AliasAndForwardDirective>.GetInstance();
+            GetForwardAliasesUnresolvedOnly(basesBeingResolved);
 
-            foreach (var namespaceOrType in usings) {
-                if (!namespaceOrType.namespaceOrType.isNamespace)
-                    continue;
+            if (_lazyForwardAliases.IsDefault) {
+                var usings = GetUsings(basesBeingResolved);
+                var builder = ArrayBuilder<AliasAndForwardDirective>.GetInstance();
 
-                var forwards = ((NamespaceSymbol)namespaceOrType.namespaceOrType)
-                    .GetForwardAliases(basesBeingResolved);
+                foreach (var namespaceOrType in usings) {
+                    if (!namespaceOrType.namespaceOrType.isNamespace)
+                        continue;
 
-                foreach (var forward in forwards) {
-                    if (forward.unresolvedTarget is not null) {
-                        var parts = forward.unresolvedTarget.Split(';');
-                        Debug.Assert(parts.Length == 2);
-                        var aliasName = parts[0];
-                        var name = SyntaxFactory.ParseName(parts[1]);
-                        var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+                    var forwards = ((NamespaceSymbol)namespaceOrType.namespaceOrType)
+                        .GetForwardAliases(basesBeingResolved);
 
-                        var symbol = BindNamespaceOrTypeOrMethodSymbol(
-                            name,
-                            tempDiagnostics,
-                            out var templateArguments,
-                            basesBeingResolved
-                        );
-
-                        if (forward.isUnresolvedType != symbol.IsTypeOrTypeAlias() || tempDiagnostics.AnyErrors()) {
-                            tempDiagnostics.Free();
-                            continue;
-                        }
-
-                        tempDiagnostics.Free();
-
-                        var syntax = SyntaxFactory.ForwardDirective(
-                            SyntaxFactory.Token(SyntaxKind.ForwardKeyword),
-                            name,
-                            SyntaxFactory.Token(SyntaxKind.SemicolonToken)
-                        );
-
-                        _lazyUnresolvedForwardsSyntax ??= [];
-                        _lazyUnresolvedForwardsSyntax.TryAdd(forward, syntax);
-
-                        var alias = new AliasSymbolFromResolvedTarget(
-                            symbol,
-                            aliasName,
-                            namespaceOrType.namespaceOrType,
-                            templateArguments,
-                            [namespaceOrType.namespaceOrType.location],
-                            isExtern: false
-                        );
-
-                        var newAliasAndForward = new AliasAndForwardDirective(alias, syntax);
-                        builder.Add(newAliasAndForward);
-
-                        _lazyForwardsNeedingMapping ??= [];
-                        _lazyForwardsNeedingMapping.Add(newAliasAndForward);
-                    } else {
-                        builder.Add(forward);
+                    foreach (var forward in forwards) {
+                        if (forward.unresolvedTarget is null)
+                            builder.Add(forward);
                     }
                 }
+
+                builder.AddRange(_lazyForwardUnresolvedAliases);
+
+                ImmutableInterlocked.InterlockedInitialize(
+                    ref _lazyForwardAliases,
+                    builder.ToImmutableAndFree()
+                );
             }
 
-            return builder.ToImmutableAndFree();
+            return _lazyForwardAliases;
+        }
+
+        private void GetForwardAliasesUnresolvedOnly(
+            ConsList<TypeSymbol> basesBeingResolved) {
+            if (_lazyForwardUnresolvedAliases.IsDefault) {
+                var usings = GetUsings(basesBeingResolved);
+                var builder = ArrayBuilder<AliasAndForwardDirective>.GetInstance();
+
+                foreach (var namespaceOrType in usings) {
+                    if (!namespaceOrType.namespaceOrType.isNamespace)
+                        continue;
+
+                    if (namespaceOrType.namespaceOrType.IsFromCompilation(compilation))
+                        continue;
+
+                    var forwards = ((NamespaceSymbol)namespaceOrType.namespaceOrType)
+                        .GetForwardAliases(basesBeingResolved);
+
+                    foreach (var forward in forwards) {
+                        if (forward.unresolvedTarget is not null) {
+                            var parts = forward.unresolvedTarget.Split(';');
+                            Debug.Assert(parts.Length == 2);
+                            var aliasName = parts[0];
+                            var name = SyntaxFactory.ParseName(parts[1]);
+                            var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+                            var symbol = BindNamespaceOrTypeOrMethodSymbol(
+                                name,
+                                tempDiagnostics,
+                                out var templateArguments,
+                                basesBeingResolved
+                            );
+
+                            if (forward.isUnresolvedType != symbol.IsTypeOrTypeAlias() || tempDiagnostics.AnyErrors()) {
+                                tempDiagnostics.Free();
+                                continue;
+                            }
+
+                            tempDiagnostics.Free();
+
+                            var syntax = SyntaxFactory.ForwardDirective(
+                                SyntaxFactory.Token(SyntaxKind.ForwardKeyword),
+                                name,
+                                SyntaxFactory.Token(SyntaxKind.SemicolonToken)
+                            );
+
+                            _lazyUnresolvedForwardsSyntax ??= [];
+                            _lazyUnresolvedForwardsSyntax.TryAdd(forward, syntax);
+
+                            var alias = new AliasSymbolFromResolvedTarget(
+                                symbol,
+                                aliasName,
+                                namespaceOrType.namespaceOrType,
+                                templateArguments,
+                                [namespaceOrType.namespaceOrType.location],
+                                isExtern: false
+                            );
+
+                            var newAliasAndForward = new AliasAndForwardDirective(alias, syntax);
+                            builder.Add(newAliasAndForward);
+
+                            _lazyForwardsNeedingMapping ??= [];
+                            _lazyForwardsNeedingMapping.Add(newAliasAndForward);
+                        }
+                    }
+                }
+
+                ImmutableInterlocked.InterlockedInitialize(
+                    ref _lazyForwardUnresolvedAliases,
+                    builder.ToImmutableAndFree()
+                );
+            }
         }
 
         internal override ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
             ConsList<TypeSymbol> basesBeingResolved) {
             var usings = GetUsings(basesBeingResolved);
             var builder = ImmutableDictionary.CreateBuilder<string, AliasAndForwardDirective>();
+            GetForwardAliasesUnresolvedOnly(basesBeingResolved);
 
             foreach (var namespaceOrType in usings) {
                 if (!namespaceOrType.namespaceOrType.isNamespace)
