@@ -14,8 +14,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceNamespaceSymbol : NamespaceSymbol {
-    private static readonly ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsings> EmptyMap =
-        ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsings>.Empty
+    private static readonly ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsingsAndForwards> EmptyMap =
+        ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsingsAndForwards>.Empty
             .WithComparers(ReferenceEqualityComparer.Instance);
 
     private static readonly Func<SingleNamespaceDeclaration, SyntaxReference> DeclaringSyntaxReferencesSelector = d =>
@@ -29,7 +29,7 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
     private ImmutableArray<Symbol> _lazyAllMembers;
     private ImmutableArray<NamedTypeSymbol> _lazyTypeMembersUnordered;
-    private ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsings> _aliasesAndUsings_doNotAccessDirectly
+    private ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsingsAndForwards> _aliasesAndUsings_doNotAccessDirectly
         = EmptyMap;
 
     private MergedGlobalAliasesAndUsings _lazyMergedGlobalAliasesAndUsings;
@@ -133,7 +133,7 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
 
                         foreach (var declaration in mergedDeclaration.declarations) {
                             if (location is null || location.tree == declaration.syntaxReference.syntaxTree) {
-                                if (declaration.hasGlobalUsings || declaration.hasUsings || declaration.hasExternAliases) {
+                                if (declaration.hasGlobalUsings || declaration.hasUsings || declaration.hasForwards) {
                                     targetDeclarationWithImports = declaration;
                                     GetAliasesAndUsings(declaration).Complete(this, declaration.syntaxReference);
                                 }
@@ -447,7 +447,7 @@ done:
             .GetImports(this, declarationSyntax, basesBeingResolved);
     }
 
-    private AliasesAndUsings GetAliasesAndUsings(BelteSyntaxNode declarationSyntax) {
+    private AliasesAndUsingsAndForwards GetAliasesAndUsings(BelteSyntaxNode declarationSyntax) {
         return GetAliasesAndUsings(GetMatchingNamespaceDeclaration(declarationSyntax));
     }
 
@@ -465,16 +465,17 @@ done:
         throw ExceptionUtilities.Unreachable();
     }
 
-    private static AliasesAndUsings GetOrCreateAliasAndUsings(
-        ref ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsings> dictionary,
+    private static AliasesAndUsingsAndForwards GetOrCreateAliasAndUsings(
+        ref ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsingsAndForwards> dictionary,
         SingleNamespaceDeclaration declaration) {
         return ImmutableInterlocked.GetOrAdd(
             ref dictionary,
             declaration,
-            static _ => new AliasesAndUsings());
+            static _ => new AliasesAndUsingsAndForwards()
+        );
     }
 
-    private AliasesAndUsings GetAliasesAndUsings(SingleNamespaceDeclaration declaration)
+    private AliasesAndUsingsAndForwards GetAliasesAndUsings(SingleNamespaceDeclaration declaration)
         => GetOrCreateAliasAndUsings(ref _aliasesAndUsings_doNotAccessDirectly, declaration);
 
     internal ImmutableArray<AliasAndUsingDirective> GetUsingAliases(
@@ -539,6 +540,114 @@ done:
 
         return GetAliasesAndUsings(declarationSyntax)
             .GetUsingNamespacesOrTypes(this, declarationSyntax, basesBeingResolved);
+    }
+
+    internal override ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var builder = ArrayBuilder<AliasAndForwardDirective>.GetInstance();
+
+        foreach (var single in mergedDeclaration.declarations) {
+            if (single.syntaxReference.node is not CompilationUnitSyntax and not BaseNamespaceDeclarationSyntax)
+                continue;
+
+            builder.AddRange(GetForwardAliasesSingle(
+                (BelteSyntaxNode)single.syntaxReference.node,
+                basesBeingResolved
+            ));
+        }
+
+        return builder.ToImmutableAndFree();
+
+        ImmutableArray<AliasAndForwardDirective> GetForwardAliasesSingle(
+            BelteSyntaxNode declarationSyntax,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            switch (declarationSyntax) {
+                case CompilationUnitSyntax compilationUnit:
+                    return [];
+                case BaseNamespaceDeclarationSyntax namespaceDecl:
+                    if (!namespaceDecl.elements.Any(e => e is ForwardDirectiveSyntax))
+                        return [];
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+            }
+
+            return GetAliasesAndUsings(declarationSyntax)
+                .GetForwardAliases(this, declarationSyntax, basesBeingResolved);
+        }
+    }
+
+    internal override ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var builder = ImmutableDictionary.CreateBuilder<string, AliasAndForwardDirective>();
+
+        foreach (var single in mergedDeclaration.declarations) {
+            if (single.syntaxReference.node is not CompilationUnitSyntax and not BaseNamespaceDeclarationSyntax)
+                continue;
+
+            builder.AddRange(GetForwardAliasesMapSingle(
+                (BelteSyntaxNode)single.syntaxReference.node,
+                basesBeingResolved
+            ));
+        }
+
+        return builder.ToImmutable();
+
+        ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMapSingle(
+            BelteSyntaxNode declarationSyntax,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            switch (declarationSyntax) {
+                case CompilationUnitSyntax compilationUnit:
+                    return [];
+                case BaseNamespaceDeclarationSyntax namespaceDecl:
+                    if (!namespaceDecl.elements.Any(e => e is ForwardDirectiveSyntax))
+                        return [];
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+            }
+
+            return GetAliasesAndUsings(declarationSyntax)
+                .GetForwardAliasesMap(this, declarationSyntax, basesBeingResolved);
+        }
+    }
+
+    internal override ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var builder = ArrayBuilder<NamespaceOrTypeAndForwardDirective>.GetInstance();
+
+        foreach (var single in mergedDeclaration.declarations) {
+            if (single.syntaxReference.node is not CompilationUnitSyntax and not BaseNamespaceDeclarationSyntax)
+                continue;
+
+            builder.AddRange(GetForwardNamespacesOrTypesSingle(
+                (BelteSyntaxNode)single.syntaxReference.node,
+                basesBeingResolved
+            ));
+        }
+
+        return builder.ToImmutableAndFree();
+
+        ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypesSingle(
+            BelteSyntaxNode declarationSyntax,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            switch (declarationSyntax) {
+                case CompilationUnitSyntax compilationUnit:
+                    return [];
+                case BaseNamespaceDeclarationSyntax namespaceDecl:
+                    if (!namespaceDecl.elements.Any(e => e is ForwardDirectiveSyntax))
+                        return [];
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+            }
+
+            return GetAliasesAndUsings(declarationSyntax)
+                .GetForwardNamespacesOrTypes(this, declarationSyntax, basesBeingResolved);
+        }
     }
 
     private Imports GetGlobalUsingImports(ConsList<TypeSymbol> basesBeingResolved) {

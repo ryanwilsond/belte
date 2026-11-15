@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Belte {
+namespace Belte.CompilerServices {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.ReturnValue | AttributeTargets.Parameter)]
     public sealed class NullabilityAttribute : Attribute {
         public byte[] encoding;

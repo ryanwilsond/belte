@@ -343,7 +343,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the using alias 'B' appeared previously in this namespace
+            the alias 'B' appeared previously in this namespace
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -439,7 +439,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            a 'using static' directive can only be applied to types; 'A' is a namespace not a type
+            a 'using static' or 'forward static' directive can only be applied to types; 'A' is a namespace not a type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -6239,7 +6239,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0458_UsingAfterMembers() {
+    public void Reports_Error_BU0458_DirectiveAfterMembers() {
         var text = @"
             namespace B { }
 
@@ -6250,7 +6250,25 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            using directive must precede all other namespace members
+            non-alias directive must precede all other non-directive namespace members
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0458_DirectiveAfterMembers2() {
+        var text = @"
+            namespace B { }
+
+            namespace A {
+                class C { }
+                [forward B;]
+            }
+        ";
+
+        var diagnostics = @"
+            non-alias directive must precede all other non-directive namespace members
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -10713,5 +10731,106 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0701_ForwardOutsideNamespace() {
+        var text = @"
+            [forward A;]
+            namespace A { }
+        ";
+
+        var diagnostics = @"
+            forward directives must be within a namespace declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0702_NoAliasHereForward() {
+        var text = @"
+            namespace D {
+                forward static [B] = A;
+
+                public static class A { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            a 'forward static' directive cannot be used to declare an alias
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0703_DuplicateForward() {
+        var text = @"
+            namespace A {
+                forward B;
+                forward [B];
+            }
+            namespace B { }
+            ;
+        ";
+
+        var diagnostics = @"
+            the forward directive for 'B' appeared previously in this namespace
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0704_BadForwardNamespace() {
+        var text = @"
+            namespace B {
+                forward [A];
+                class A { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            a 'forward' directive can only be applied to namespaces; 'A' is a type not a namespace; consider a 'forward static' directive instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0705_BadForwardStaticType() {
+        var text = @"
+            namespace C {
+                forward static [A];
+                struct A { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'struct' type is not valid for 'forward static'; only a class can be used
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0706_UnnecessaryForward() {
+        var text = @"
+            namespace C {
+                [forward B;]
+                namespace B { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            forward directive is unnecessary because 'B' is a direct namespace member of 'C'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 }

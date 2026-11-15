@@ -1694,7 +1694,7 @@ public sealed partial class Compilation {
         MarkImportDirectiveAsUsed(node.syntaxTree, node.span.start);
     }
 
-    internal void MarkImportDirectiveAsUsed(SyntaxTree? syntaxTree, int position) {
+    internal void MarkImportDirectiveAsUsed(SyntaxTree syntaxTree, int position) {
         if (syntaxTree is not null) {
             var set = treeToUsedImportDirectivesMap.GetOrAdd(syntaxTree, CreateSetCallback);
             set.Add(position);

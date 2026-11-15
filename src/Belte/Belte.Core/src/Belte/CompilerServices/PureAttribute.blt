@@ -1,8 +1,8 @@
 using System;
 
-namespace Belte;
+namespace Belte.CompilerServices;
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class ConstMethodAttribute extends Attribute {
+public sealed class PureAttribute extends Attribute {
     public constructor() { }
 }

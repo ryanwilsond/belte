@@ -29,14 +29,14 @@
 | BU0019 | Error | not all code paths return a value |
 | BU0020 | Error | cannot convert from type '{0}' to '{1}' |
 | BU0021 | Error | the namespace '{0}' already contains a definition for '{1}' |
-| BU0022 | Error | the using alias '{0}' appeared previously in this namespace |
+| BU0022 | Error | the alias '{0}' appeared previously in this namespace |
 | BU0023 | Error | ambiguous which statement this else-clause belongs to; use curly braces |
 | BU0024 | Error | the using directive for '{0}' appeared previously as global using |
-| BU0025 | Error | cannot apply indexing with [] to an expression of type '{0}' |
+| BU0025 | Error | cannot apply indexing with \[] to an expression of type '{0}' |
 | BU0026 | Warning | unreachable code |
 | BU0027 | Error | unterminated string literal |
 | BU0028 | Error | a 'using static' directive cannot be used to declare an alias |
-| BU0029 | Error | a 'using static' directive can only be applied to types; '{0}' is a namespace not a type |
+| BU0029 | Error | a 'using static' or 'forward static' directive can only be applied to types; '{0}' is a namespace not a type |
 | BU0030 | Error | duplicate user-defined conversion in type '{0}' |
 | BU0031 | Error | the using directive for '{0}' appeared previously in this namespace |
 | BU0032 | Error | called object is not a method |
@@ -120,7 +120,7 @@
 | BU0111 | Error | cannot return by reference a member of parameter '{0}' because is not a ref parameter |
 | BU0112 | Error | cannot return a parameter by reference '{0}' because it is scoped to the current method |
 | BU0113 | Error | cannot return a parameter by reference '{0}' through a ref parameter; it can only be returned in a return statement |
-| BU0114 | Error | cannot initialize type '{0}' with an initializer list because the type does not define a conversion from 'T[]' or 'Buffer\<T>' |
+| BU0114 | Error | cannot initialize type '{0}' with an initializer list because the type does not define a conversion from 'T\[]' or 'Buffer\<T>' |
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
 | BU0117 | Error | use of unassigned local '{0}' |
@@ -310,7 +310,7 @@
 | BU0301 | Error | the parameter type for ++ or -- operator must be the containing type, or its type template parameter constrained to it |
 | BU0302 | Error | the return type for ++ or -- operator must match the parameter type or be derived from the parameter type |
 | BU0303 | Error | the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type template parameter constrained to it unless the parameter type is a different type template parameter |
-| BU0304 | Error | wrong number of indices inside []; expected {0} |
+| BU0304 | Error | wrong number of indices inside \[]; expected {0} |
 | BU0305 | Error | cannot have multiple 'Update' graphics update points |
 | BU0306 | Error | the 'Main' entry point and 'Update' graphics update point must be declared in the same class |
 | BU0307 | Error | fields cannot be implicitly typed |
@@ -399,7 +399,7 @@
 | BU0390 | Error | file-scoped namespace must precede all other members in a file |
 | BU0391 | Error | entry point type cannot define instance constructors |
 | BU0392 | Error | struct member '{0}' of type '{1}' causes a cycle in the struct layout |
-| BU0393 | Error | for iterator expression must be an array, string, Enumerator or define the iter operator or define the length and [] operators |
+| BU0393 | Error | for iterator expression must be an array, string, Enumerator or define the iter operator or define the length and \[] operators |
 | BU0394 | Error | length operator must return 'int!' |
 | BU0395 | Error | iter operator must return 'Enumerator!' |
 | BU0396 | Error | unexpected parameter list (operand is not a method) |
@@ -464,7 +464,7 @@
 | BU0455 | Error | '{0}': tuple element names must be unique |
 | BU0456 | Error | 'new' cannot be used with tuple types; use a tuple literal instead |
 | BU0457 | Error | invalid token '{0}' in a member declaration |
-| BU0458 | Error | using directive must precede all other namespace members |
+| BU0458 | Error | non-alias directive must precede all other non-directive namespace members |
 | BU0459 | Error | there is no target type for the literal with suffix '{0}' |
 | BU0460 | Error | type '{0}' has no definition for literals of type '{1}' with the suffix '{2}' |
 | BU0461 | Error | the return type for literal operators must match the containing type or be derived from the containing type |
@@ -670,6 +670,7 @@
 | BU0662 | Warning | local '{0}' is unused |
 | BU0663 | Warning | local '{0}' could be marked 'const' |
 | BU0664 | Warning | local '{0}' could be marked 'final' |
+| BU0665 | Warning | local '{0}' could be marked 'constexpr' |
 | BU0666 | Error | null-binding target must be marked as constant if the source expression is constant |
 | BU0667 | Error | cannot mark a data container as both final and variable |
 | BU0668 | Error | cannot mark a data container as both constant expression and variable |
@@ -705,6 +706,12 @@
 | BU0698 | Error | cannot alias method '{0}' because it is not static |
 | BU0699 | Error | the alias '{0}' cannot be used with template arguments because it targets an already constructed method group |
 | BU0700 | Error | the type caught must be derived from 'System.Exception' |
+| BU0701 | Error | forward directives must be within a namespace declaration |
+| BU0702 | Error | a 'forward static' directive cannot be used to declare an alias |
+| BU0703 | Error | the forward directive for '{0}' appeared previously in this namespace |
+| BU0704 | Error | a 'forward' directive can only be applied to namespaces; '{0}' is a type not a namespace; consider a 'forward static' directive instead |
+| BU0705 | Error | '{0}' type is not valid for 'forward static'; only a class can be used |
+| BU0706 | Warning | forward directive is unnecessary because '{0}' is a direct namespace member of '{1}' |
 | BU9000 | Unsupported | unsupported: cannot compile independently currently; must specify '-i' or '-r' |
 | BU9001 | Unsupported | unsupported: cannot declare a non-type template local function |
 | BU9002 | Unsupported | unsupported: inline IL instruction '{0}' not supported |
@@ -719,9 +726,9 @@
 | - | - | - |
 | CL0001 | Error | missing filename after '-o' |
 | CL0002 | Error | cannot specify '--explain' more than once |
-| CL0003 | Error | missing diagnostic code after '--explain' (usage: '--explain[BU\|RE\|CL]\<code>') |
+| CL0003 | Error | missing diagnostic code after '--explain' (usage: '--explain\[BU\|RE\|CL]\<code>') |
 | CL0004 | Error | missing name after '{0}' (usage: '--modulename=\<name>') |
-| CL0005 | Error | missing name after '{0}' (usage: '--ref[,flat,copy]=\<path>') |
+| CL0005 | Error | missing name after '{0}' (usage: '--ref\[,flat,copy]=\<path>') |
 | CL0006 | Error | failed to open file '{0}'; most likely due to the file being used by another process |
 | CL0007 | Error | missing severity after '{0}' (usage: '--severity=\<severity>') |
 | CL0008 | Error | unrecognized severity '{0}' |
@@ -735,17 +742,17 @@
 | CL0016 | Fatal | no input files |
 | CL0017 | Error | {0}: no such file or directory |
 | CL0018 | Info | unknown file type of input file '{0}'; ignoring |
-| CL0019 | Error | '{0}' is not a valid diagnostic code; must be in the format: [BU\|CL\|RE]\<code>{1} examples: BU0001, CL0001, BU54, CL012, RE0001, RE6 |
+| CL0019 | Error | '{0}' is not a valid diagnostic code; must be in the format: \[BU\|CL\|RE]\<code>{1} examples: BU0001, CL0001, BU54, CL012, RE0001, RE6 |
 | CL0020 | Info | {0}: file already compiled; ignoring |
 | CL0021 | Error | '{0}' is not a used diagnostic code |
 | CL0022 | Fatal | cannot pass multiple files when running as a script |
 | CL0023 | Fatal | cannot interpret file |
 | CL0024 | Error | missing warning level after '{0}' (usage: '--warnlevel=\<warning level>') |
 | CL0025 | Error | invalid warning level '{0}'; warning level must be a number between 0 and 3 |
-| CL0026 | Error | missing warning code after '{0}' (usage: '--wignore=\<[BU\|RE\|CL]\<code>,...>') |
-| CL0027 | Error | missing warning code after '{0}' (usage: '--winclude=\<[BU\|RE\|CL]\<code>,...>') |
+| CL0026 | Error | missing warning code after '{0}' (usage: '--wignore=\<\[BU\|RE\|CL]\<code>,...>') |
+| CL0027 | Error | missing warning code after '{0}' (usage: '--winclude=\<\[BU\|RE\|CL]\<code>,...>') |
 | CL0028 | Error | '{0}' is not the code of a warning |
-| CL0029 | Error | missing project type after '{0}' (usage: '--type=[console\|graphics\|...]') |
+| CL0029 | Error | missing project type after '{0}' (usage: '--type=\[console\|graphics\|...]') |
 | CL0030 | Error | unrecognized project type '{0}' |
 | CL0031 | Fatal | cannot compile to a dynamically linked library without .NET integration |
 | CL0032 | Fatal | cannot specify an output file and module name when building a dynamically linked library |
@@ -761,8 +768,8 @@
 | CL0042 | Error | '{0}': cannot create new project because location is occupied |
 | CL0043 | Error | unable to run project; project does not have a runnable build mode |
 | CL0044 | Error | failed to start process: {0} |
-| CL0045 | Error | missing warning code after '{0}' (usage: '--werrignore=\<[BU\|RE\|CL]\<code>,...>') |
-| CL0046 | Error | missing warning code after '{0}' (usage: '--werrinclude=\<[BU\|RE\|CL]\<code>,...>') |
+| CL0045 | Error | missing warning code after '{0}' (usage: '--werrignore=\<\[BU\|RE\|CL]\<code>,...>') |
+| CL0046 | Error | missing warning code after '{0}' (usage: '--werrinclude=\<\[BU\|RE\|CL]\<code>,...>') |
 | CL0047 | Error | missing warning level after '{0}' (usage: '--werror=\<warning level>') |
 | CL0048 | Error | missing filename after '{0}' |
 | CL0049 | Fatal | cannot specify '--skiptm' when not building a dynamically linked library |

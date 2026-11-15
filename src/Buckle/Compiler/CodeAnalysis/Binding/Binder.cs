@@ -85,6 +85,8 @@ internal partial class Binder {
 
     internal virtual ImmutableArray<AliasAndUsingDirective> usingAliases => [];
 
+    internal virtual ImmutableArray<AliasAndForwardDirective> forwardedAliases => [];
+
     internal virtual ImmutableArray<LabelSymbol> labels => [];
 
     internal virtual ImmutableArray<TokenSymbol> tokens => [];
@@ -201,7 +203,7 @@ internal partial class Binder {
             AccessCheck.IsSymbolAccessible(symbol, within, throughType);
     }
 
-    private protected void MarkImportDirective(SyntaxReference directive) {
+    private protected virtual void MarkImportDirective(SyntaxReference directive) {
         if (directive is not null)
             compilation.MarkImportDirectiveAsUsed(directive);
     }
@@ -1243,7 +1245,7 @@ internal partial class Binder {
 
         // Prefer user-defined symbols over special types EXCEPT during template binding
         // ? The only reason we make this exception is to prevent infinite loops in binding
-        if (node.parent.parent.kind != SyntaxKind.TemplateParameterList) {
+        if (node.parent?.parent is null || node.parent.parent.kind != SyntaxKind.TemplateParameterList) {
             LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, node.location, true);
             performedLookup = true;
         }
@@ -5888,6 +5890,7 @@ internal partial class Binder {
 
     private protected void LookupSymbolInAliases(
         ImmutableDictionary<string, AliasAndUsingDirective> usingAliases,
+        ImmutableDictionary<string, AliasAndForwardDirective> forwardedAliases,
         Binder originalBinder,
         LookupResult result,
         string name,
@@ -5911,7 +5914,24 @@ internal partial class Binder {
                 MarkImportDirective(alias.usingDirectiveReference);
 
             result.MergeEqual(res);
-        }
+        } else
+            // TODO Prefer usings over forwards?
+            if (forwardedAliases.TryGetValue(name, out var forward)) {
+                var res = originalBinder.CheckViability(
+                    forward.alias,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    errorLocation,
+                    basesBeingResolved
+                );
+
+                if (res.kind == LookupResultKind.Viable)
+                    MarkImportDirective(forward.forwardDirectiveReference);
+
+                result.MergeEqual(res);
+            }
     }
 
     private protected bool IsUsingAlias(ImmutableDictionary<string, AliasAndUsingDirective> usingAliases, string name) {
@@ -5923,12 +5943,38 @@ internal partial class Binder {
         return false;
     }
 
+    private protected bool IsForwardedAlias(
+        ImmutableDictionary<string, AliasAndForwardDirective> forwardedAliases,
+        string name) {
+        if (forwardedAliases.TryGetValue(name, out var node)) {
+            MarkImportDirective(node.forwardDirectiveReference);
+            return true;
+        }
+
+        return false;
+    }
+
     private protected void AddLookupSymbolsInfoInAliases(
         ImmutableDictionary<string, AliasAndUsingDirective> usingAliases,
+        ImmutableDictionary<string, AliasAndForwardDirective> forwardedAliases,
         LookupSymbolsInfo result,
         LookupOptions options,
         Binder originalBinder) {
         foreach (var pair in usingAliases) {
+            var aliasSymbol = pair.Value.alias;
+            var targetSymbol = aliasSymbol.GetAliasTarget(basesBeingResolved: null);
+
+            if (originalBinder.CanAddLookupSymbolInfo(
+                targetSymbol,
+                options,
+                result,
+                accessThroughType: null,
+                aliasSymbol: aliasSymbol)) {
+                result.AddSymbol(aliasSymbol, aliasSymbol.name, 0);
+            }
+        }
+
+        foreach (var pair in forwardedAliases) {
             var aliasSymbol = pair.Value.alias;
             var targetSymbol = aliasSymbol.GetAliasTarget(basesBeingResolved: null);
 

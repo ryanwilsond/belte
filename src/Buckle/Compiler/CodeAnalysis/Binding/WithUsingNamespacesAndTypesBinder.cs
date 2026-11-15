@@ -34,6 +34,24 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved
     );
 
+    internal abstract ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwards(
+        ConsList<TypeSymbol> basesBeingResolved
+    );
+
+    // Used by WithUsingAliasesBinder
+    internal abstract ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved);
+
+    // Used by WithUsingAliasesBinder
+    internal abstract ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved);
+
+    // Used by WithUsingAliasesBinder
+    internal abstract ImmutableDictionary<ForwardDirectiveSyntax, SyntaxReference> GetForwardAliasesOrigins(
+        ConsList<TypeSymbol> basesBeingResolved);
+
+    private protected abstract SyntaxReference GetForwardOrigin(ForwardDirectiveSyntax forwardDirective);
+
     internal override void LookupSymbolsInSingleBinder(
         LookupResult result,
         string name,
@@ -43,7 +61,6 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
         Binder originalBinder,
         TextLocation errorLocation,
         bool diagnose) {
-
         foreach (var typeOrNamespace in GetUsings(basesBeingResolved)) {
             var candidates = GetCandidateMembers(
                 typeOrNamespace.namespaceOrType,
@@ -53,7 +70,7 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
             );
 
             foreach (var symbol in candidates) {
-                if (!IsValidLookupCandidateInUsings(symbol))
+                if (!IsValidLookupCandidateInUsingsOrForwards(symbol))
                     continue;
 
                 var res = originalBinder.CheckViability(
@@ -72,9 +89,45 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
                 result.MergeEqual(res);
             }
         }
+
+        foreach (var typeOrNamespace in GetForwards(basesBeingResolved)) {
+            var candidates = GetCandidateMembers(
+                typeOrNamespace.namespaceOrType,
+                name,
+                options,
+                originalBinder: originalBinder
+            );
+
+            foreach (var symbol in candidates) {
+                if (!IsValidLookupCandidateInUsingsOrForwards(symbol))
+                    continue;
+
+                var res = originalBinder.CheckViability(
+                    symbol,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    errorLocation,
+                    basesBeingResolved
+                );
+
+                if (res.kind == LookupResultKind.Viable)
+                    MarkImportDirective(typeOrNamespace.forwardDirectiveReference);
+
+                result.MergeEqual(res);
+            }
+        }
     }
 
-    private static bool IsValidLookupCandidateInUsings(Symbol symbol) {
+    private protected override void MarkImportDirective(SyntaxReference directive) {
+        base.MarkImportDirective(directive);
+
+        if (directive.node is ForwardDirectiveSyntax forwardDirective)
+            base.MarkImportDirective(GetForwardOrigin(forwardDirective));
+    }
+
+    private static bool IsValidLookupCandidateInUsingsOrForwards(Symbol symbol) {
         switch (symbol.kind) {
             case SymbolKind.Namespace:
                 return false;
@@ -95,13 +148,25 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
         return true;
     }
 
-    internal override void AddLookupSymbolsInfoInSingleBinder(LookupSymbolsInfo result, LookupOptions options, Binder originalBinder) {
+    internal override void AddLookupSymbolsInfoInSingleBinder(
+        LookupSymbolsInfo result,
+        LookupOptions options,
+        Binder originalBinder) {
         options = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly))
             | LookupOptions.MustNotBeNamespace;
 
         foreach (var namespaceSymbol in GetUsings(basesBeingResolved: null)) {
             foreach (var member in namespaceSymbol.namespaceOrType.GetMembersUnordered()) {
-                if (IsValidLookupCandidateInUsings(member) &&
+                if (IsValidLookupCandidateInUsingsOrForwards(member) &&
+                    originalBinder.CanAddLookupSymbolInfo(member, options, result, null)) {
+                    result.AddSymbol(member, member.name, member.GetArity());
+                }
+            }
+        }
+
+        foreach (var namespaceSymbol in GetForwards(basesBeingResolved: null)) {
+            foreach (var member in namespaceSymbol.namespaceOrType.GetMembersUnordered()) {
+                if (IsValidLookupCandidateInUsingsOrForwards(member) &&
                     originalBinder.CanAddLookupSymbolInfo(member, options, result, null)) {
                     result.AddSymbol(member, member.name, member.GetArity());
                 }

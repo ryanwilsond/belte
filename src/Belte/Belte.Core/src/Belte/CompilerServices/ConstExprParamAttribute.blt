@@ -1,6 +1,6 @@
 using System;
 
-namespace Belte;
+namespace Belte.CompilerServices;
 
 [AttributeUsage(AttributeTargets.Parameter)]
 public sealed class ConstExprParamAttribute extends Attribute {

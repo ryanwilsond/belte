@@ -311,6 +311,13 @@ public static partial class SyntaxFactory {
         return (CompilationUnitSyntax)node.CreateRed();
     }
 
+    internal static NameSyntax ParseName(string text) {
+        using var lexer = MakeLexer(text, 0, null);
+        using var parser = MakeParser(lexer);
+        var node = parser.ParseName();
+        return (NameSyntax)node.CreateRed();
+    }
+
     private static Lexer MakeLexer(string text, int offset, ParseOptions options) {
         return new Lexer(
             MakeSourceText(text, offset),

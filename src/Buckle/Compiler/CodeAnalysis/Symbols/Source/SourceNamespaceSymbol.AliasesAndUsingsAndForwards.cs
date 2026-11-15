@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -11,9 +12,9 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceNamespaceSymbol {
-    private sealed partial class AliasesAndUsings {
-        private UsingsAndDiagnostics _lazyGlobalUsings;
-        private UsingsAndDiagnostics _lazyUsings;
+    private sealed partial class AliasesAndUsingsAndForwards {
+        private UsingsAndForwardsAndDiagnostics _lazyGlobalUsings;
+        private UsingsAndForwardsAndDiagnostics _lazyUsingsAndForwards;
         private Imports _lazyImports;
         private SymbolCompletionState _state;
 
@@ -21,7 +22,8 @@ internal partial class SourceNamespaceSymbol {
             SourceNamespaceSymbol declaringSymbol,
             BelteSyntaxNode declarationSyntax,
             ConsList<TypeSymbol> basesBeingResolved) {
-            return GetUsingsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved).usingAliases;
+            return GetUsingsAndForwardsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
+                .usingAliases;
         }
 
         internal ImmutableArray<AliasAndUsingDirective> GetGlobalUsingAliases(
@@ -35,8 +37,8 @@ internal partial class SourceNamespaceSymbol {
             SourceNamespaceSymbol declaringSymbol,
             BelteSyntaxNode declarationSyntax,
             ConsList<TypeSymbol> basesBeingResolved) {
-            return GetUsingsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
-                .usingAliasesMap ?? ImmutableDictionary<string, AliasAndUsingDirective>.Empty;
+            return GetUsingsAndForwardsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
+                .usingAliasesMap ?? [];
         }
 
         internal ImmutableDictionary<string, AliasAndUsingDirective> GetGlobalUsingAliasesMap(
@@ -47,23 +49,47 @@ internal partial class SourceNamespaceSymbol {
                 declaringSymbol,
                 (BelteSyntaxNode)declarationSyntax.node,
                 basesBeingResolved
-            )).usingAliasesMap ?? ImmutableDictionary<string, AliasAndUsingDirective>.Empty;
+            )).usingAliasesMap ?? [];
         }
 
         internal ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingNamespacesOrTypes(
             SourceNamespaceSymbol declaringSymbol,
             BelteSyntaxNode declarationSyntax,
             ConsList<TypeSymbol> basesBeingResolved) {
-            return GetUsingsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
+            return GetUsingsAndForwardsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
                 .usingNamespacesOrTypes;
         }
 
-        private UsingsAndDiagnostics GetUsingsAndDiagnostics(
+        internal ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
             SourceNamespaceSymbol declaringSymbol,
             BelteSyntaxNode declarationSyntax,
             ConsList<TypeSymbol> basesBeingResolved) {
-            return GetUsingsAndDiagnostics(
-                ref _lazyUsings,
+            return GetUsingsAndForwardsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
+                .forwardAliases;
+        }
+
+        internal ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+            SourceNamespaceSymbol declaringSymbol,
+            BelteSyntaxNode declarationSyntax,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            return GetUsingsAndForwardsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
+                .forwardAliasesMap ?? [];
+        }
+
+        internal ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+            SourceNamespaceSymbol declaringSymbol,
+            BelteSyntaxNode declarationSyntax,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            return GetUsingsAndForwardsAndDiagnostics(declaringSymbol, declarationSyntax, basesBeingResolved)
+                .forwardNamespacesOrTypes;
+        }
+
+        private UsingsAndForwardsAndDiagnostics GetUsingsAndForwardsAndDiagnostics(
+            SourceNamespaceSymbol declaringSymbol,
+            BelteSyntaxNode declarationSyntax,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            return GetUsingsAndForwardsAndDiagnostics(
+                ref _lazyUsingsAndForwards,
                 declaringSymbol,
                 declarationSyntax,
                 basesBeingResolved,
@@ -82,11 +108,11 @@ internal partial class SourceNamespaceSymbol {
             )).usingNamespacesOrTypes;
         }
 
-        private UsingsAndDiagnostics GetGlobalUsingsAndDiagnostics(
+        private UsingsAndForwardsAndDiagnostics GetGlobalUsingsAndDiagnostics(
             SourceNamespaceSymbol declaringSymbol,
             BelteSyntaxNode declarationSyntax,
             ConsList<TypeSymbol> basesBeingResolved) {
-            return GetUsingsAndDiagnostics(
+            return GetUsingsAndForwardsAndDiagnostics(
                 ref _lazyGlobalUsings,
                 declaringSymbol,
                 declarationSyntax,
@@ -95,14 +121,15 @@ internal partial class SourceNamespaceSymbol {
             );
         }
 
-        private UsingsAndDiagnostics GetUsingsAndDiagnostics(
-            ref UsingsAndDiagnostics usings,
+        private UsingsAndForwardsAndDiagnostics GetUsingsAndForwardsAndDiagnostics(
+            ref UsingsAndForwardsAndDiagnostics usingsAndForwards,
             SourceNamespaceSymbol declaringSymbol,
             BelteSyntaxNode declarationSyntax,
             ConsList<TypeSymbol> basesBeingResolved,
             bool onlyGlobal) {
-            if (usings is null) {
+            if (usingsAndForwards is null) {
                 IEnumerable<UsingDirectiveSyntax> usingDirectives;
+                IEnumerable<ForwardDirectiveSyntax> forwardDirectives;
                 bool? applyIsGlobalFilter;
 
                 switch (declarationSyntax) {
@@ -111,6 +138,9 @@ internal partial class SourceNamespaceSymbol {
                         usingDirectives = compilationUnit.elements
                             .Where(e => e is UsingDirectiveSyntax)
                             .Select(e => (UsingDirectiveSyntax)e);
+                        forwardDirectives = compilationUnit.elements
+                            .Where(e => e is ForwardDirectiveSyntax)
+                            .Select(e => (ForwardDirectiveSyntax)e);
 
                         break;
                     case BaseNamespaceDeclarationSyntax namespaceDecl:
@@ -118,19 +148,22 @@ internal partial class SourceNamespaceSymbol {
                         usingDirectives = namespaceDecl.elements
                             .Where(e => e is UsingDirectiveSyntax)
                             .Select(e => (UsingDirectiveSyntax)e);
+                        forwardDirectives = namespaceDecl.elements
+                            .Where(e => e is ForwardDirectiveSyntax)
+                            .Select(e => (ForwardDirectiveSyntax)e);
 
                         break;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
                 }
 
-                UsingsAndDiagnostics result;
+                UsingsAndForwardsAndDiagnostics result;
 
-                if (!usingDirectives.Any()) {
+                if (!usingDirectives.Any() && !forwardDirectives.Any()) {
                     if (applyIsGlobalFilter != false) {
-                        result = UsingsAndDiagnostics.Empty;
+                        result = UsingsAndForwardsAndDiagnostics.Empty;
                     } else {
-                        result = new UsingsAndDiagnostics() {
+                        result = new UsingsAndForwardsAndDiagnostics() {
                             usingAliases = GetGlobalUsingAliases(
                                 declaringSymbol,
                                 declarationSyntax,
@@ -144,8 +177,9 @@ internal partial class SourceNamespaceSymbol {
                         };
                     }
                 } else {
-                    result = BuildUsings(
+                    result = BuildUsingsAndForwards(
                         usingDirectives,
+                        forwardDirectives,
                         declaringSymbol,
                         declarationSyntax,
                         applyIsGlobalFilter,
@@ -153,13 +187,14 @@ internal partial class SourceNamespaceSymbol {
                     );
                 }
 
-                Interlocked.CompareExchange(ref usings, result, null);
+                Interlocked.CompareExchange(ref usingsAndForwards, result, null);
             }
 
-            return usings;
+            return usingsAndForwards;
 
-            UsingsAndDiagnostics BuildUsings(
+            UsingsAndForwardsAndDiagnostics BuildUsingsAndForwards(
                 IEnumerable<UsingDirectiveSyntax> usingDirectives,
+                IEnumerable<ForwardDirectiveSyntax> forwardDirectives,
                 SourceNamespaceSymbol declaringSymbol,
                 BelteSyntaxNode declarationSyntax,
                 bool? applyIsGlobalFilter,
@@ -181,9 +216,19 @@ internal partial class SourceNamespaceSymbol {
                 ImmutableDictionary<string, AliasAndUsingDirective>.Builder usingAliasesMap = null;
                 ArrayBuilder<AliasAndUsingDirective> usingAliases = null;
 
+                ArrayBuilder<NamespaceOrTypeAndForwardDirective> forwards = null;
+                ImmutableDictionary<string, AliasAndForwardDirective>.Builder forwardAliasesMap = null;
+                ArrayBuilder<AliasAndForwardDirective> forwardAliases = null;
+
                 Binder declarationBinder = null;
                 PooledHashSet<NamespaceOrTypeSymbol> uniqueUsings = null;
                 PooledHashSet<NamespaceOrTypeSymbol> uniqueGlobalUsings = null;
+                PooledHashSet<NamespaceOrTypeSymbol> uniqueForwards = null;
+
+                if (applyIsGlobalFilter == true)
+                    Debug.Assert(!forwardDirectives.Any());
+
+                // TODO Could possibly deduplicate this code, but not sure if it is worth it
 
                 foreach (var usingDirective in usingDirectives) {
                     if (applyIsGlobalFilter.HasValue &&
@@ -339,16 +384,139 @@ internal partial class SourceNamespaceSymbol {
                     }
                 }
 
+                foreach (var forwardDirective in forwardDirectives) {
+                    if (forwardDirective.alias is not null) {
+                        var identifier = forwardDirective.alias.name.identifier;
+                        var location = forwardDirective.alias.name.location;
+
+                        if (forwardDirective.staticKeyword is not null)
+                            diagnostics.Push(Error.NoAliasHereForward(location));
+
+                        var identifierValueText = identifier.valueText;
+                        var skipInLookup = false;
+
+                        if ((forwardAliasesMap?.ContainsKey(identifierValueText) ?? false) ||
+                                (usingAliasesMap?.ContainsKey(identifierValueText) ??
+                                 globalUsingAliasesMap.ContainsKey(identifierValueText))) {
+                            skipInLookup = true;
+
+                            if (!forwardDirective.namespaceOrType.isFabricated)
+                                diagnostics.Push(Error.DuplicateAlias(location, identifierValueText));
+                        }
+
+                        var aliasAndDirective = new AliasAndForwardDirective(
+                            new AliasSymbolFromSyntax(declaringSymbol, forwardDirective),
+                            forwardDirective
+                        );
+
+                        forwardAliases ??= ArrayBuilder<AliasAndForwardDirective>.GetInstance();
+                        forwardAliases.Add(aliasAndDirective);
+
+                        if (!skipInLookup) {
+                            forwardAliasesMap ??= ImmutableDictionary.CreateBuilder<string, AliasAndForwardDirective>();
+                            forwardAliasesMap.Add(identifierValueText, aliasAndDirective);
+                        }
+                    } else {
+                        if (forwardDirective.namespaceOrType.isFabricated)
+                            continue;
+
+                        var flags = BinderFlags.SuppressConstraintChecks;
+                        var directiveDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+                        declarationBinder ??= compilation.GetBinderFactory(declarationSyntax.syntaxTree)
+                            .GetBinder(forwardDirective.namespaceOrType)
+                            .WithAdditionalFlags(flags);
+
+                        var imported = declarationBinder.BindNamespaceOrTypeSymbol(
+                            forwardDirective.namespaceOrType,
+                            directiveDiagnostics,
+                            basesBeingResolved
+                        ).namespaceOrTypeSymbol;
+
+                        var addDirectiveDiagnostics = true;
+
+                        if (imported.kind == SymbolKind.Namespace) {
+                            if (forwardDirective.staticKeyword is not null) {
+                                diagnostics.Push(
+                                    Error.BadUsingType(forwardDirective.namespaceOrType.location, imported)
+                                );
+                            } else if (!GetOrCreateUniqueForwards(ref uniqueForwards).Add(imported)) {
+                                diagnostics.Push(
+                                    Error.DuplicateForward(forwardDirective.namespaceOrType.location, imported)
+                                );
+                            } else {
+                                GetOrCreateForwardsBuilder(ref forwards).Add(new NamespaceOrTypeAndForwardDirective(
+                                    imported,
+                                    forwardDirective,
+                                    dependencies: default
+                                ));
+                            }
+                        } else if (imported is NamedTypeSymbol t && !t.IsStructType()) {
+                            if (forwardDirective.staticKeyword is null) {
+                                diagnostics.Push(Error.BadForwardNamespace(
+                                    forwardDirective.namespaceOrType.location,
+                                    imported.StrippedTypeOrSelf()
+                                ));
+                            } else {
+                                var importedType = (NamedTypeSymbol)imported;
+
+                                if (!GetOrCreateUniqueForwards(ref uniqueForwards).Add(importedType)) {
+                                    diagnostics.Push(
+                                        Error.DuplicateForward(
+                                            forwardDirective.namespaceOrType.location,
+                                            importedType
+                                        )
+                                    );
+                                } else {
+                                    GetOrCreateForwardsBuilder(ref forwards)
+                                        .Add(new NamespaceOrTypeAndForwardDirective(
+                                            importedType,
+                                            forwardDirective,
+                                            // TODO
+                                            // directiveDiagnostics.DependenciesBag.ToImmutableArray()
+                                            []
+                                        )
+                                    );
+                                }
+                            }
+                        } else if (imported.kind == SymbolKind.ArrayType ||
+                            (imported is NamedTypeSymbol t2 && t2.IsStructType())) {
+                            diagnostics.Push(Error.BadForwardStaticType(
+                                forwardDirective.namespaceOrType.location,
+                                imported.kind == SymbolKind.ArrayType ? imported.kind.Localize() : "struct"
+                            ));
+
+                            addDirectiveDiagnostics = false;
+                        } else if (imported.kind != SymbolKind.ErrorType) {
+                            diagnostics.Push(Error.BadSKKnown(
+                                forwardDirective.namespaceOrType.location,
+                                forwardDirective.namespaceOrType,
+                                imported.kind.Localize(),
+                                MessageID.IDS_SK_TYPE_OR_NAMESPACE.Localize()
+                            ));
+                        }
+
+                        if (addDirectiveDiagnostics)
+                            diagnostics.PushRange(directiveDiagnostics);
+
+                        directiveDiagnostics.Free();
+                    }
+                }
+
                 uniqueUsings?.Free();
                 uniqueGlobalUsings?.Free();
+                uniqueForwards?.Free();
 
                 if (!diagnostics.Any())
                     diagnostics = null;
 
-                return new UsingsAndDiagnostics() {
+                return new UsingsAndForwardsAndDiagnostics() {
                     usingAliases = usingAliases?.ToImmutableAndFree() ?? globalUsingAliases,
                     usingAliasesMap = usingAliasesMap?.ToImmutable() ?? globalUsingAliasesMap,
                     usingNamespacesOrTypes = usings?.ToImmutableAndFree() ?? globalUsingNamespacesOrTypes,
+                    forwardAliases = forwardAliases?.ToImmutableAndFree() ?? [],
+                    forwardAliasesMap = forwardAliasesMap?.ToImmutable() ?? [],
+                    forwardNamespacesOrTypes = forwards?.ToImmutableAndFree() ?? [],
                     diagnostics = diagnostics
                 };
 
@@ -356,7 +524,8 @@ internal partial class SourceNamespaceSymbol {
                     ref PooledHashSet<NamespaceOrTypeSymbol> uniqueUsings,
                     ImmutableArray<NamespaceOrTypeAndUsingDirective> globalUsingNamespacesOrTypes) {
                     if (uniqueUsings is null) {
-                        uniqueUsings = SpecializedSymbolCollections.GetPooledSymbolHashSetInstance<NamespaceOrTypeSymbol>();
+                        uniqueUsings = SpecializedSymbolCollections
+                            .GetPooledSymbolHashSetInstance<NamespaceOrTypeSymbol>();
                         uniqueUsings.AddAll(globalUsingNamespacesOrTypes.Select(n => n.namespaceOrType));
                     }
 
@@ -368,7 +537,8 @@ internal partial class SourceNamespaceSymbol {
                     ImmutableArray<NamespaceOrTypeAndUsingDirective> globalUsingNamespacesOrTypes,
                     SyntaxTree tree) {
                     if (uniqueUsings is null) {
-                        uniqueUsings = SpecializedSymbolCollections.GetPooledSymbolHashSetInstance<NamespaceOrTypeSymbol>();
+                        uniqueUsings = SpecializedSymbolCollections
+                            .GetPooledSymbolHashSetInstance<NamespaceOrTypeSymbol>();
                         uniqueUsings.AddAll(globalUsingNamespacesOrTypes
                             .Where(n => n.usingDirectiveReference?.syntaxTree != tree)
                             .Select(n => n.namespaceOrType));
@@ -386,6 +556,20 @@ internal partial class SourceNamespaceSymbol {
                     }
 
                     return usings;
+                }
+
+                static PooledHashSet<NamespaceOrTypeSymbol> GetOrCreateUniqueForwards(
+                    ref PooledHashSet<NamespaceOrTypeSymbol> uniqueForwards) {
+                    uniqueForwards ??= SpecializedSymbolCollections
+                        .GetPooledSymbolHashSetInstance<NamespaceOrTypeSymbol>();
+
+                    return uniqueForwards;
+                }
+
+                static ArrayBuilder<NamespaceOrTypeAndForwardDirective> GetOrCreateForwardsBuilder(
+                    ref ArrayBuilder<NamespaceOrTypeAndForwardDirective> forwards) {
+                    forwards ??= ArrayBuilder<NamespaceOrTypeAndForwardDirective>.GetInstance();
+                    return forwards;
                 }
             }
         }
@@ -416,11 +600,11 @@ internal partial class SourceNamespaceSymbol {
                         (BelteSyntaxNode)declarationSyntax.node,
                         basesBeingResolved: null
                     )
-                    : UsingsAndDiagnostics.Empty
+                    : UsingsAndForwardsAndDiagnostics.Empty
                 );
 
-            var usingsAndDiagnostics = _lazyUsings ??
-                GetUsingsAndDiagnostics(
+            var usingsAndForwardsAndDiagnostics = _lazyUsingsAndForwards ??
+                GetUsingsAndForwardsAndDiagnostics(
                     declaringSymbol,
                     (BelteSyntaxNode)declarationSyntax.node,
                     basesBeingResolved: null
@@ -435,7 +619,7 @@ internal partial class SourceNamespaceSymbol {
                                 Validate(
                                     declaringSymbol,
                                     declarationSyntax,
-                                    usingsAndDiagnostics,
+                                    usingsAndForwardsAndDiagnostics,
                                     globalUsingsAndDiagnostics.diagnostics
                                 );
 
@@ -461,15 +645,15 @@ internal partial class SourceNamespaceSymbol {
         private static void Validate(
             SourceNamespaceSymbol declaringSymbol,
             SyntaxReference declarationSyntax,
-            UsingsAndDiagnostics usingsAndDiagnostics,
+            UsingsAndForwardsAndDiagnostics usingsAndForwardsAndDiagnostics,
             BelteDiagnosticQueue globalUsingDiagnostics) {
             var compilation = declaringSymbol.declaringCompilation;
             var semanticDiagnostics = compilation.declarationDiagnostics;
 
             var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-            if (usingsAndDiagnostics.usingAliasesMap is not null) {
-                foreach (var (_, alias) in usingsAndDiagnostics.usingAliasesMap) {
+            if (usingsAndForwardsAndDiagnostics.usingAliasesMap is { } usingAliasesMap) {
+                foreach (var (_, alias) in usingAliasesMap) {
                     if (alias.usingDirectiveReference.syntaxTree != declarationSyntax.syntaxTree)
                         continue;
 
@@ -486,13 +670,35 @@ internal partial class SourceNamespaceSymbol {
                     alias.alias.CheckConstraints(diagnostics);
 
                     semanticDiagnostics.PushRange(diagnostics);
-                    RecordImportDependencies(alias.usingDirective, target);
+                    RecordImportDependencies(target);
+                }
+            }
+
+            if (usingsAndForwardsAndDiagnostics.forwardAliasesMap is { } forwardAliasesMap) {
+                foreach (var (_, alias) in forwardAliasesMap) {
+                    if (alias.forwardDirectiveReference.syntaxTree != declarationSyntax.syntaxTree)
+                        continue;
+
+                    var target = alias.alias.GetAliasTarget(basesBeingResolved: null);
+
+                    diagnostics.Clear();
+
+                    if (alias.alias is AliasSymbolFromSyntax aliasFromSyntax)
+                        diagnostics.PushRange(aliasFromSyntax.aliasTargetDiagnostics);
+
+                    if (target is MethodSymbol m && m.requiresInstanceReceiver)
+                        diagnostics.Push(Error.AliasMethodMustBeStatic(alias.forwardDirectiveReference.location, m));
+
+                    alias.alias.CheckConstraints(diagnostics);
+
+                    semanticDiagnostics.PushRange(diagnostics);
+                    RecordImportDependencies(target);
                 }
             }
 
             var conversions = compilation.assembly.corAssemblies[0].typeConversions;
 
-            foreach (var @using in usingsAndDiagnostics.usingNamespacesOrTypes) {
+            foreach (var @using in usingsAndForwardsAndDiagnostics.usingNamespacesOrTypes) {
                 if (@using.usingDirectiveReference.syntaxTree != declarationSyntax.syntaxTree)
                     continue;
 
@@ -507,18 +713,50 @@ internal partial class SourceNamespaceSymbol {
                 }
 
                 semanticDiagnostics.PushRange(diagnostics);
-                RecordImportDependencies(usingDirective, target);
+                RecordImportDependencies(target);
             }
 
-            if (usingsAndDiagnostics.diagnostics?.Any() == true)
-                semanticDiagnostics.PushRange(usingsAndDiagnostics.diagnostics);
+            foreach (var forward in usingsAndForwardsAndDiagnostics.forwardNamespacesOrTypes) {
+                if (forward.forwardDirectiveReference.syntaxTree != declarationSyntax.syntaxTree)
+                    continue;
+
+                diagnostics.Clear();
+                var target = forward.namespaceOrType;
+                var forwardDirective = forward.forwardDirective;
+
+                if (target.isType) {
+                    var typeSymbol = (TypeSymbol)target;
+                    var location = forwardDirective.namespaceOrType.location;
+                    typeSymbol.CheckAllConstraints(conversions, location, [], diagnostics);
+                } else {
+                    var namespaceSymbol = (NamespaceSymbol)target;
+
+                    foreach (var member in declaringSymbol.GetMembers()) {
+                        if (member == namespaceSymbol) {
+                            diagnostics.Push(Warning.UnnecessaryForward(
+                                forward.forwardDirective.location,
+                                namespaceSymbol,
+                                declaringSymbol
+                            ));
+
+                            break;
+                        }
+                    }
+                }
+
+                semanticDiagnostics.PushRange(diagnostics);
+                RecordImportDependencies(target);
+            }
+
+            if (usingsAndForwardsAndDiagnostics.diagnostics?.Any() == true)
+                semanticDiagnostics.PushRange(usingsAndForwardsAndDiagnostics.diagnostics);
 
             if (globalUsingDiagnostics?.Any() == true)
                 semanticDiagnostics.PushRange(globalUsingDiagnostics);
 
             diagnostics.Free();
 
-            void RecordImportDependencies(UsingDirectiveSyntax usingDirective, Symbol target) {
+            void RecordImportDependencies(Symbol target) {
                 // TODO doc comments
                 // if (Compilation.ReportUnusedImportsInTree(usingDirective.syntaxTree)) {
                 //     compilation.RecordImportDependencies(

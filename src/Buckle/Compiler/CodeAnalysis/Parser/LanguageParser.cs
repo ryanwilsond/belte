@@ -72,6 +72,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), elements, endOfFile);
     }
 
+    internal NameSyntax ParseName() {
+        return ParseWithStackGuard(
+            static @this => @this.ParseQualifiedName(),
+            static @this => SyntaxFactory.EmptyName()
+        );
+    }
+
     internal TNode ParseWithStackGuard<TNode>(
         Func<LanguageParser, TNode> parseFunc,
         Func<LanguageParser, TNode> createEmptyNodeFunc) where TNode : BelteSyntaxNode {
@@ -158,6 +165,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private bool IsPossibleNamespaceMemberDeclaration() {
         switch (currentToken.kind) {
             case SyntaxKind.UsingKeyword:
+            case SyntaxKind.ForwardKeyword:
             case SyntaxKind.NamespaceKeyword:
                 return true;
             default:
@@ -261,6 +269,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.UsingDirective(globalKeyword, keyword, staticKeyword, alias, namespaceOrType, semicolon);
     }
 
+    private ForwardDirectiveSyntax ParseForwardDirective() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.ForwardDirective)
+            return (ForwardDirectiveSyntax)EatNode();
+
+        var keyword = Match(SyntaxKind.ForwardKeyword);
+        var staticKeyword = EatIfMatch(SyntaxKind.StaticKeyword);
+        var alias = IsNamedAssignment() ? ParseNameEquals() : null;
+        var namespaceOrType = alias is null ? ParseQualifiedName() : ParseType(allowNoFollowUp: true);
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.ForwardDirective(keyword, staticKeyword, alias, namespaceOrType, semicolon);
+    }
+
     private bool IsNamedAssignment() {
         return currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.EqualsToken;
     }
@@ -276,7 +296,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         bool isGlobal = false) {
         var elements = _pool.Allocate<NamespaceElementSyntax>();
 
-        var seenAfterUsings = false;
+        var seenAfterDirectives = false;
 
         var savedTerminatorState = _terminatorState;
         _terminatorState |= TerminatorState.IsNamespaceMemberStartOrStop;
@@ -291,14 +311,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (PeekIsUsingDirective()) {
                 var usingDirective = ParseUsingDirective();
 
-                if (seenAfterUsings && (usingDirective.alias is null || usingDirective.globalKeyword is not null))
-                    usingDirective = AddDiagnostic(usingDirective, Error.UsingAfterMembers());
+                if (seenAfterDirectives && (usingDirective.alias is null || usingDirective.globalKeyword is not null))
+                    usingDirective = AddDiagnostic(usingDirective, Error.DirectiveAfterMembers());
 
                 elements.Add(usingDirective);
+            } else if (currentToken.kind == SyntaxKind.ForwardKeyword) {
+                var forwardDirective = ParseForwardDirective();
+
+                if (seenAfterDirectives && forwardDirective.alias is null)
+                    forwardDirective = AddDiagnostic(forwardDirective, Error.DirectiveAfterMembers());
+
+                elements.Add(forwardDirective);
             } else if (kind == SyntaxKind.EndOfFileToken || kind == closeKind) {
                 break;
             } else {
-                seenAfterUsings = true;
+                seenAfterDirectives = true;
                 var member = ParseMember(allowGlobalStatements: isGlobal);
                 elements.Add(member);
             }
@@ -3360,6 +3387,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.DeferKeyword:
             case SyntaxKind.TryKeyword:
             case SyntaxKind.UsingKeyword:
+            case SyntaxKind.ForwardKeyword:
             case SyntaxKind.WhileKeyword:
             case SyntaxKind.ReverseKeyword:
             case SyntaxKind.CommitKeyword:

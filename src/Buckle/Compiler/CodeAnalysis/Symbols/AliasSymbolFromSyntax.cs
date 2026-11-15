@@ -23,6 +23,16 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
         _directive = new SyntaxReference(syntax);
     }
 
+    internal AliasSymbolFromSyntax(SourceNamespaceSymbol containingSymbol, ForwardDirectiveSyntax syntax)
+        : base(
+            syntax.alias.name.identifier.valueText,
+            containingSymbol,
+            [syntax.alias.name.identifier.location],
+            false
+        ) {
+        _directive = new SyntaxReference(syntax);
+    }
+
     public override Symbol target => GetAliasTarget(basesBeingResolved: null);
 
     internal override bool requiresCompletion => true;
@@ -33,7 +43,7 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
         if (!_state.HasComplete(CompletionParts.AliasTarget)) {
             var newDiagnostics = BelteDiagnosticQueue.GetInstance();
 
-            var symbol = ResolveAliasTarget((UsingDirectiveSyntax)_directive.node, newDiagnostics, basesBeingResolved);
+            var symbol = ResolveAliasTarget(_directive.node, newDiagnostics, basesBeingResolved);
 
             if (Interlocked.CompareExchange(ref _aliasTarget, symbol, null) is null) {
                 Interlocked.Exchange(ref _aliasTargetDiagnostics, newDiagnostics);
@@ -55,10 +65,13 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
     }
 
     private Symbol ResolveAliasTarget(
-        UsingDirectiveSyntax usingDirective,
+        SyntaxNode directive,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
-        var syntax = usingDirective.namespaceOrType;
+        var syntax = directive is UsingDirectiveSyntax u
+            ? u.namespaceOrType
+            : ((ForwardDirectiveSyntax)directive).namespaceOrType;
+
         var flags = BinderFlags.SuppressConstraintChecks;
 
         var declarationBinder = containingSymbol.declaringCompilation

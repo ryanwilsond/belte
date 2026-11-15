@@ -8,7 +8,7 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
     internal RootSingleNamespaceDeclaration(
         bool hasGlobalUsings,
         bool hasUsings,
-        bool hasExternAliases,
+        bool hasForwards,
         SyntaxReference treeNode,
         ImmutableArray<SingleNamespaceOrTypeDeclaration> children,
         // ImmutableArray<ReferenceDirective> referenceDirectives,
@@ -23,7 +23,7 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
         // this.referenceDirectives = referenceDirectives;
         this.hasGlobalUsings = hasGlobalUsings;
         this.hasUsings = hasUsings;
-        this.hasExternAliases = hasExternAliases;
+        this.hasForwards = hasForwards;
         this.hasAssemblyAttributes = hasAssemblyAttributes;
     }
 
@@ -33,7 +33,7 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
 
     internal override bool hasUsings { get; }
 
-    internal override bool hasExternAliases { get; }
+    internal override bool hasForwards { get; }
 
     internal override bool hasAssemblyAttributes { get; }
 }

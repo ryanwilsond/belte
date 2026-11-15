@@ -5101,4 +5101,83 @@ public sealed class IssueTests {
 
         AssertValue(text, "10 ");
     }
+
+    [Fact]
+    public void ForwardDirective_ForwardsClass() {
+        var text = @"
+            namespace A {
+                forward static B;
+
+                public static class B {
+                    public static void M() { }
+                }
+            }
+
+            namespace P {
+                using A;
+
+                public static class Program {
+                    public static void Main() {
+                        M();
+                    }
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ForwardDirective_ForwardsNamespace() {
+        var text = @"
+            namespace A {
+                forward B;
+            }
+
+            namespace B {
+                public class C { }
+            }
+
+            namespace P {
+                using A;
+
+                public static class Program {
+                    public static void Main() {
+                        var a = new C();
+                    }
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ForwardDirective_ForwardsAlias() {
+        var text = @"
+            namespace A {
+                forward D = C;
+
+                public class C { }
+            }
+
+            namespace P {
+                using A;
+
+                public static class Program {
+                    public static void Main() {
+                        var a = new D();
+                    }
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

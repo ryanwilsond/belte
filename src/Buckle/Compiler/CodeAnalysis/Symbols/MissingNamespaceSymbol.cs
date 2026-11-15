@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -42,6 +43,21 @@ internal class MissingNamespaceSymbol : NamespaceSymbol {
     internal override SyntaxReference syntaxReference => null;
 
     internal override TextLocation location => null;
+
+    internal override ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
         return [];

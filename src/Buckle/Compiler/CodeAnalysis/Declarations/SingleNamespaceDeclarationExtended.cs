@@ -9,17 +9,17 @@ internal sealed class SingleNamespaceDeclarationExtended : SingleNamespaceDeclar
     internal SingleNamespaceDeclarationExtended(
         string name,
         bool hasUsings,
-        bool hasExternAliases,
+        bool hasForwards,
         SyntaxReference syntaxReference,
         TextLocation nameLocation,
         ImmutableArray<SingleNamespaceOrTypeDeclaration> children,
         ImmutableArray<BelteDiagnostic> diagnostics)
         : base(name, syntaxReference, nameLocation, children, diagnostics) {
         this.hasUsings = hasUsings;
-        this.hasExternAliases = hasExternAliases;
+        this.hasForwards = hasForwards;
     }
 
     internal override bool hasUsings { get; }
 
-    internal override bool hasExternAliases { get; }
+    internal override bool hasForwards { get; }
 }

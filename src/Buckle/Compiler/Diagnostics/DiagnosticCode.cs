@@ -466,7 +466,7 @@ public enum DiagnosticCode : ushort {
     ERR_TupleDuplicateElementName = 455,
     ERR_CannotCreateTuple = 456,
     ERR_InvalidMemberDeclarationToken = 457,
-    ERR_UsingAfterMembers = 458,
+    ERR_DirectiveAfterMembers = 458,
     ERR_ExtendedLiteralNoTargetType = 459,
     ERR_NoExtendedLiteralConversion = 460,
     ERR_BadLiteralOperatorReturnType = 461,
@@ -709,6 +709,12 @@ public enum DiagnosticCode : ushort {
     ERR_AliasMethodMustBeStatic = 698,
     ERR_TemplateNotAllowedAlias = 699,
     ERR_BadExceptionType = 700,
+    ERR_ForwardOutsideNamespace = 701,
+    ERR_NoAliasHereForward = 702,
+    ERR_DuplicateForward = 703,
+    ERR_BadForwardNamespace = 704,
+    ERR_BadForwardStaticType = 705,
+    WRN_UnnecessaryForward = 706,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

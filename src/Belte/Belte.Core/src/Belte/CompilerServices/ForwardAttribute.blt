@@ -1,0 +1,16 @@
+using System;
+
+namespace Belte.CompilerServices;
+
+[AttributeUsage(AttributeTargets.Assembly)]
+public sealed class ForwardAttribute extends Attribute {
+    public string namespaceName;
+    public uint8 kind;
+    public string target;
+
+    public constructor(string namespaceName, uint8 kind, string target) {
+        this.namespaceName = namespaceName;
+        this.kind = kind;
+        this.target = target;
+    }
+}

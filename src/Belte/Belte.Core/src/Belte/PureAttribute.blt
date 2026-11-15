@@ -1,8 +1,0 @@
-using System;
-
-namespace Belte;
-
-[AttributeUsage(AttributeTargets.Method)]
-public sealed class PureAttribute extends Attribute {
-    public constructor() { }
-}

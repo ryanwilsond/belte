@@ -277,6 +277,7 @@ public static class SyntaxFacts {
             "error" => SyntaxKind.ErrorKeyword,
             "warning" => SyntaxKind.WarningKeyword,
             "info" => SyntaxKind.InfoKeyword,
+            "forward" => SyntaxKind.ForwardKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -513,6 +514,7 @@ public static class SyntaxFacts {
             SyntaxKind.ErrorKeyword => "error",
             SyntaxKind.WarningKeyword => "warning",
             SyntaxKind.InfoKeyword => "info",
+            SyntaxKind.ForwardKeyword => "forward",
             _ => null,
         };
     }
@@ -918,7 +920,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.InfoKeyword;
+    private const int LastKeyword = (int)SyntaxKind.ForwardKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

@@ -206,7 +206,8 @@ public enum SyntaxKind : ushort {
     LocationKeyword,
     ErrorKeyword,
     WarningKeyword,
-    InfoKeyword, // SyntaxFacts.LastKeyword
+    InfoKeyword,
+    ForwardKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -332,6 +333,7 @@ public enum SyntaxKind : ushort {
 
     // Directives
     UsingDirective,
+    ForwardDirective,
 
     // Declarations
     CompilationUnit,

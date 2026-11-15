@@ -133,6 +133,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [finally](ControlFlow.md#261-trycatchfinally)
 - [for](ControlFlow.md#243-for-loops) (for loop)
 - [for](ControlFlow.md#244-for-each-loops) (for each loop)
+- [forward](ClassesAndObjects.md#413-forward-directives)
 - [global](ClassesAndObjects.md#483-global-using-directive) (using directive)
 - [global](ClassesAndObjects.md#482-global-disambiguation) (disambiguation)
 - [goto](ControlFlow.md#25-switch)

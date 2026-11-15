@@ -24,30 +24,34 @@ internal class SingleNamespaceDeclaration : SingleNamespaceOrTypeDeclaration {
 
     internal virtual bool hasUsings => false;
 
-    internal virtual bool hasExternAliases => false;
+    internal virtual bool hasForwards => false;
 
     internal virtual bool hasAssemblyAttributes => false;
 
     internal static SingleNamespaceDeclaration Create(
         string name,
         bool hasUsings,
-        bool hasExternAliases,
+        bool hasForwards,
         SyntaxReference syntaxReference,
         TextLocation nameLocation,
         ImmutableArray<SingleNamespaceOrTypeDeclaration> children,
         ImmutableArray<BelteDiagnostic> diagnostics) {
-        // Optimize for the most common "no usings, no extern aliases" case
-        if (!hasUsings && !hasExternAliases) {
-            return new SingleNamespaceDeclaration(
-                name, syntaxReference, nameLocation, children, diagnostics);
+        if (!hasUsings && !hasForwards) {
+            return new SingleNamespaceDeclaration(name, syntaxReference, nameLocation, children, diagnostics);
         } else {
             return new SingleNamespaceDeclarationExtended(
-                name, hasUsings, hasExternAliases, syntaxReference, nameLocation, children, diagnostics);
+                name,
+                hasUsings,
+                hasForwards,
+                syntaxReference,
+                nameLocation,
+                children,
+                diagnostics
+            );
         }
     }
 
-    private protected override ImmutableArray<SingleNamespaceOrTypeDeclaration>
-        GetNamespaceOrTypeDeclarationChildren() {
+    private protected override ImmutableArray<SingleNamespaceOrTypeDeclaration> GetNamespaceOrTypeDeclarationChildren() {
         return _children;
     }
 }

@@ -1,6 +1,6 @@
 using System;
 
-namespace Belte;
+namespace Belte.CompilerServices;
 
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class NoAllocAttribute extends Attribute {

@@ -423,6 +423,20 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="ForwardDirectiveSyntax" Base="NamespaceElementSyntax">
+    <Kind Name="ForwardDirective"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ForwardKeyword" />
+    </Field>
+    <Field Name="staticKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="StaticKeyword" />
+    </Field>
+    <Field Name="alias" Type="NameEqualsSyntax" Optional="true"/>
+    <Field Name="namespaceOrType" Type="TypeSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <!-- Names -->
   <AbstractNode Name="TypeSyntax" Base="ExpressionSyntax"/>
   <AbstractNode Name="NameSyntax" Base="TypeSyntax"/>

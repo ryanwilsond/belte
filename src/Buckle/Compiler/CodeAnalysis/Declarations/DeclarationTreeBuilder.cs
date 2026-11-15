@@ -71,8 +71,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         var hasNonEmptyGlobalStatement = false;
 
         var childrenBuilder = ArrayBuilder<SingleNamespaceOrTypeDeclaration>.GetInstance();
+
         foreach (var member in members) {
-            if (member is UsingDirectiveSyntax)
+            if (member is UsingDirectiveSyntax or ForwardDirectiveSyntax)
                 continue;
 
             var namespaceOrType = Visit(member);
@@ -120,7 +121,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return childrenBuilder.ToImmutableAndFree();
     }
 
-    private static SingleNamespaceOrTypeDeclaration CreateImplicitClass(
+    private static SingleTypeDeclaration CreateImplicitClass(
         BoxedMemberNames memberNames,
         SyntaxReference container,
         SingleTypeDeclaration.TypeDeclarationFlags declFlags) {
@@ -181,6 +182,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         ImmutableArray<SingleNamespaceOrTypeDeclaration> children) {
         var hasUsings = false;
         var hasGlobalUsings = false;
+        var reportedForwards = false;
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
@@ -197,13 +199,16 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 } else {
                     hasUsings = true;
                 }
+            } else if (element is ForwardDirectiveSyntax && !reportedForwards) {
+                reportedForwards = true;
+                diagnostics.Push(Error.ForwardOutsideNamespace(element.location));
             }
         }
 
         return new RootSingleNamespaceDeclaration(
             hasGlobalUsings: hasGlobalUsings,
             hasUsings: hasUsings,
-            hasExternAliases: false,
+            hasForwards: false,
             treeNode: new SyntaxReference(compilationUnit),
             children: children,
             hasAssemblyAttributes: compilationUnit.attributeLists.Any(),
@@ -259,6 +264,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         );
 
         var hasUsings = node.elements.Any(e => e is UsingDirectiveSyntax);
+        var hasForwards = node.elements.Any(e => e is ForwardDirectiveSyntax);
         var name = node.name;
         BelteSyntaxNode currentNode = node;
 
@@ -266,7 +272,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             var ns = SingleNamespaceDeclaration.Create(
                 name: dotted.right.identifier.valueText,
                 hasUsings: hasUsings,
-                hasExternAliases: false,
+                hasForwards: hasForwards,
                 syntaxReference: new SyntaxReference(currentNode),
                 nameLocation: dotted.right.location,
                 children: children,
@@ -319,7 +325,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return SingleNamespaceDeclaration.Create(
             name: name.GetUnqualifiedName().identifier.valueText,
             hasUsings: hasUsings,
-            hasExternAliases: false,
+            hasForwards: hasForwards,
             syntaxReference: new SyntaxReference(currentNode),
             nameLocation: name.location,
             children: children,

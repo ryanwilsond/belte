@@ -1577,7 +1577,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic DuplicateAlias(TextLocation location, string name) {
-        var message = $"the using alias '{name}' appeared previously in this namespace";
+        var message = $"the alias '{name}' appeared previously in this namespace";
         return CreateError(DiagnosticCode.ERR_DuplicateAlias, location, message);
     }
 
@@ -1592,7 +1592,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadUsingType(TextLocation location, NamespaceOrTypeSymbol symbol) {
-        var message = $"a 'using static' directive can only be applied to types; '{symbol}' is a namespace not a type";
+        var message = $"a 'using static' or 'forward static' directive can only be applied to types; '{symbol}' is a namespace not a type";
         return CreateError(DiagnosticCode.ERR_BadUsingType, location, message);
     }
 
@@ -2352,9 +2352,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidMemberDeclarationToken, message);
     }
 
-    internal static Diagnostic UsingAfterMembers() {
-        var message = $"using directive must precede all other namespace members";
-        return CreateError(DiagnosticCode.ERR_UsingAfterMembers, message);
+    internal static Diagnostic DirectiveAfterMembers() {
+        var message = $"non-alias directive must precede all other non-directive namespace members";
+        return CreateError(DiagnosticCode.ERR_DirectiveAfterMembers, message);
     }
 
     internal static BelteDiagnostic NoExtendedLiteralConversion(TextLocation location, TypeSymbol type, TypeSymbol type2, string suffix) {
@@ -3413,6 +3413,31 @@ internal static class Error {
     internal static BelteDiagnostic BadExceptionType(TextLocation location) {
         var message = $"the type caught must be derived from 'System.Exception'";
         return CreateError(DiagnosticCode.ERR_BadExceptionType, location, message);
+    }
+
+    internal static BelteDiagnostic ForwardOutsideNamespace(TextLocation location) {
+        var message = $"forward directives must be within a namespace declaration";
+        return CreateError(DiagnosticCode.ERR_ForwardOutsideNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic NoAliasHereForward(TextLocation location) {
+        var message = $"a 'forward static' directive cannot be used to declare an alias";
+        return CreateError(DiagnosticCode.ERR_NoAliasHereForward, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateForward(TextLocation location, Symbol symbol) {
+        var message = $"the forward directive for '{symbol}' appeared previously in this namespace";
+        return CreateError(DiagnosticCode.ERR_DuplicateForward, location, message);
+    }
+
+    internal static BelteDiagnostic BadForwardNamespace(TextLocation location, Symbol symbol) {
+        var message = $"a 'forward' directive can only be applied to namespaces; '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a type not a namespace; consider a 'forward static' directive instead";
+        return CreateError(DiagnosticCode.ERR_BadForwardNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic BadForwardStaticType(TextLocation location, string kind) {
+        var message = $"'{kind}' type is not valid for 'forward static'; only a class can be used";
+        return CreateError(DiagnosticCode.ERR_BadForwardStaticType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
