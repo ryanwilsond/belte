@@ -554,7 +554,7 @@ internal sealed class RefILBuilder : ILBuilder {
             var (_, source, inHandler) = _tryStack.Peek();
 
             if ((!inHandler && !BlockContainsLabel(source.body, symbol)) ||
-                (inHandler && !BlockContainsLabel(source.catchBody, symbol))) {
+                (inHandler && !BlockContainsLabel(source.catchBody.body, symbol))) {
                 cOpCode = opCode == CodeGeneration.OpCode.Br ? OpCodes.Leave : OpCodes.Leave_S;
             }
         }

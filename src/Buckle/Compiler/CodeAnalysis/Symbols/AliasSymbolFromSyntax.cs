@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -8,8 +9,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class AliasSymbolFromSyntax : AliasSymbol {
     private readonly SyntaxReference _directive;
     private SymbolCompletionState _state;
-    private NamespaceOrTypeSymbol _aliasTarget;
+    private Symbol _aliasTarget;
     private BelteDiagnosticQueue _aliasTargetDiagnostics;
+    private ImmutableArray<TypeOrConstant> _templateArguments;
 
     internal AliasSymbolFromSyntax(SourceNamespaceSymbol containingSymbol, UsingDirectiveSyntax syntax)
         : base(
@@ -21,15 +23,27 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
         _directive = new SyntaxReference(syntax);
     }
 
-    public override NamespaceOrTypeSymbol target => GetAliasTarget(basesBeingResolved: null);
+    internal AliasSymbolFromSyntax(SourceNamespaceSymbol containingSymbol, ForwardDirectiveSyntax syntax)
+        : base(
+            syntax.alias.name.identifier.valueText,
+            containingSymbol,
+            [syntax.alias.name.identifier.location],
+            false
+        ) {
+        _directive = new SyntaxReference(syntax);
+    }
+
+    public override Symbol target => GetAliasTarget(basesBeingResolved: null);
 
     internal override bool requiresCompletion => true;
 
-    internal override NamespaceOrTypeSymbol GetAliasTarget(ConsList<TypeSymbol>? basesBeingResolved) {
+    internal override ImmutableArray<TypeOrConstant> templateArguments => _templateArguments;
+
+    internal override Symbol GetAliasTarget(ConsList<TypeSymbol> basesBeingResolved) {
         if (!_state.HasComplete(CompletionParts.AliasTarget)) {
             var newDiagnostics = BelteDiagnosticQueue.GetInstance();
 
-            var symbol = ResolveAliasTarget((UsingDirectiveSyntax)_directive.node, newDiagnostics, basesBeingResolved);
+            var symbol = ResolveAliasTarget(_directive.node, newDiagnostics, basesBeingResolved);
 
             if (Interlocked.CompareExchange(ref _aliasTarget, symbol, null) is null) {
                 Interlocked.Exchange(ref _aliasTargetDiagnostics, newDiagnostics);
@@ -50,11 +64,14 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
         }
     }
 
-    private NamespaceOrTypeSymbol ResolveAliasTarget(
-        UsingDirectiveSyntax usingDirective,
+    private Symbol ResolveAliasTarget(
+        SyntaxNode directive,
         BelteDiagnosticQueue diagnostics,
-        ConsList<TypeSymbol>? basesBeingResolved) {
-        var syntax = usingDirective.namespaceOrType;
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var syntax = directive is UsingDirectiveSyntax u
+            ? u.namespaceOrType
+            : ((ForwardDirectiveSyntax)directive).namespaceOrType;
+
         var flags = BinderFlags.SuppressConstraintChecks;
 
         var declarationBinder = containingSymbol.declaringCompilation
@@ -62,12 +79,14 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
             .GetBinder(syntax)
             .WithAdditionalFlags(flags);
 
-        var annotatedNamespaceOrType = declarationBinder.BindNamespaceOrTypeSymbol(
+        var symbol = declarationBinder.BindNamespaceOrTypeOrMethodSymbol(
             syntax,
             diagnostics,
+            out var templateArguments,
             basesBeingResolved
         );
 
-        return annotatedNamespaceOrType.namespaceOrTypeSymbol;
+        _templateArguments = templateArguments;
+        return symbol;
     }
 }

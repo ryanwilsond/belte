@@ -42,6 +42,7 @@
   - [3.7.5](#375-exec) `$exec`
   - [3.7.6](#376-type) `$type`
   - [3.7.7](#377-location) `$location`
+  - [3.7.8](#378-diagnostic-expressions) Diagnostic Expressions
 - [3.8](#38-binds-expressions) Binds Expressions
 
 ## 3.1 Data Types
@@ -1293,6 +1294,24 @@ static void SomeFunc() {
 When this code is compiled, a diagnostic with two locations will be reported saying the execution of `SomeFunc()` threw
 an uncaught exception. The two locations are the call-site (`$exec(SomeFunc())`) and the location of the `$location`
 expression.
+
+### 3.7.8 Diagnostic Expressions
+
+`$error(...)`, `$warning(...)`, and `$info(...)` can be used to send diagnostics at compile time. They can either be
+isolated as expression statements or precede an expression. The expression inside the parenthesis must be a compile-time
+string.
+
+```belte
+$warning("some warning message");
+
+int a = $info($exec(CalculateInfoMessage())) 10;
+
+if (SomeCall())
+  $error("some error message");
+```
+
+Note that because these messages are propagated at compile time, the error in the above example is always reported even
+though it is inside of a conditional.
 
 ## 3.8 Binds Expressions
 

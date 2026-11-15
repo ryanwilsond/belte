@@ -9,28 +9,24 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 // Only used for "late" constants (compile-time expressions)
 internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
-    private readonly MethodSymbol _method;
     private readonly Dictionary<Symbol, ConstantValue> _constantMap;
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private bool _madeProgress;
 
     private ConstantFoldingPass(
-        MethodSymbol method,
         Dictionary<Symbol, ConstantValue> constantMap,
         BelteDiagnosticQueue diagnostics) {
-        _method = method;
         _constantMap = constantMap;
         _diagnostics = diagnostics;
     }
 
     internal static BoundBlockStatement Fold(
-        MethodSymbol method,
         BoundBlockStatement body,
         Dictionary<Symbol, ConstantValue> constantMap,
         out bool madeProgress,
         BelteDiagnosticQueue diagnostics) {
-        var constantFolding = new ConstantFoldingPass(method, constantMap, diagnostics);
+        var constantFolding = new ConstantFoldingPass(constantMap, diagnostics);
 
         try {
             return (BoundBlockStatement)constantFolding.Visit(body);

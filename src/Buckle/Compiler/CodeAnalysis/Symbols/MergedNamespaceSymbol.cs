@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -17,6 +18,9 @@ internal sealed class MergedNamespaceSymbol : NamespaceSymbol {
     private readonly CachingDictionary<ReadOnlyMemory<char>, Symbol> _cachedLookup;
 
     private ImmutableArray<Symbol> _allMembers;
+    private ImmutableArray<NamespaceOrTypeAndForwardDirective> _allForwards;
+    private ImmutableArray<AliasAndForwardDirective> _allForwardAliases;
+    private ImmutableDictionary<string, AliasAndForwardDirective> _allForwardAliasesMap;
 
     internal static NamespaceSymbol Create(
         NamespaceExtent extent,
@@ -126,6 +130,48 @@ internal sealed class MergedNamespaceSymbol : NamespaceSymbol {
         }
 
         return _allMembers;
+    }
+
+    internal override ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_allForwards.IsDefault) {
+            var builder = ArrayBuilder<NamespaceOrTypeAndForwardDirective>.GetInstance();
+
+            foreach (var @namespace in _namespacesToMerge)
+                builder.AddRange(@namespace.GetForwardNamespacesOrTypes(basesBeingResolved));
+
+            _allForwards = builder.ToImmutableAndFree();
+        }
+
+        return _allForwards;
+    }
+
+    internal override ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_allForwardAliases.IsDefault) {
+            var builder = ArrayBuilder<AliasAndForwardDirective>.GetInstance();
+
+            foreach (var @namespace in _namespacesToMerge)
+                builder.AddRange(@namespace.GetForwardAliases(basesBeingResolved));
+
+            _allForwardAliases = builder.ToImmutableAndFree();
+        }
+
+        return _allForwardAliases;
+    }
+
+    internal override ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_allForwardAliasesMap is null) {
+            var builder = ImmutableDictionary.CreateBuilder<string, AliasAndForwardDirective>();
+
+            foreach (var @namespace in _namespacesToMerge)
+                builder.AddRange(@namespace.GetForwardAliasesMap(basesBeingResolved));
+
+            _allForwardAliasesMap = builder.ToImmutable();
+        }
+
+        return _allForwardAliasesMap;
     }
 
     internal override ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name) {

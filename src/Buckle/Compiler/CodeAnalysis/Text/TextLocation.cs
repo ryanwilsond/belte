@@ -73,7 +73,7 @@ public class TextLocation {
     /// <summary>
     /// Index of the last character relative to the line (not entire <see cref="SourceText" />).
     /// </summary>
-    public int endCharacter => span.end - text.GetLine(startLine).start;
+    public int endCharacter => span.end - text.GetLine(endline).start;
 
     public virtual bool Equals(TextLocation other) {
         return text == other.text && span.start == other.span.start && span.length == other.span.length;

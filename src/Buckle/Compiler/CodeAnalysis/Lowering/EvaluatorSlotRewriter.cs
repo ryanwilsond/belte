@@ -112,6 +112,28 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
         ));
     }
 
+    internal override BoundNode VisitCatchBlockStatement(BoundCatchBlockStatement node) {
+        if (node.exceptionSource is not null) {
+            var local = ((BoundDataContainerExpression)node.exceptionSource).dataContainer;
+
+            if (!local.isGlobal) {
+                localSlotManager.DeclareLocal(
+                    local.type,
+                    local,
+                    local.name,
+                    local.synthesizedKind,
+                    local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+                    false
+                );
+            }
+        }
+
+        var exceptionSource = (BoundExpression)Visit(node.exceptionSource);
+        var body = (BoundBlockStatement)Visit(node.body);
+        var exceptionType = VisitType(node.exceptionType);
+        return node.Update(node.locals, exceptionSource, exceptionType, body);
+    }
+
     internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
         var local = node.dataContainer;
 

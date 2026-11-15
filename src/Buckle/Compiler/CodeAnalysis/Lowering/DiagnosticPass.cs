@@ -107,14 +107,14 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         var current = expr;
 
         while (true) {
-            if (current is not BoundCastExpression conversion || !conversion.conversion.kind.IsImplicitCast())
+            if (current is not BoundCastExpression conversion || !conversion.conversion.trueKind.IsImplicitCast())
                 return current;
 
             current = conversion.operand;
         }
     }
 
-    private static bool IsSameLocalOrField(BoundExpression expr1, BoundExpression expr2) {
+    internal static bool IsSameLocalOrField(BoundExpression expr1, BoundExpression expr2) {
         if (expr1 is null && expr2 is null)
             return true;
 

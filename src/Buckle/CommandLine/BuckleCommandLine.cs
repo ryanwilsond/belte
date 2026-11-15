@@ -71,6 +71,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0612, "BU"),
         new DiagnosticInfo(0613, "BU"),
         new DiagnosticInfo(0615, "BU"),
+        new DiagnosticInfo(0706, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -124,7 +125,8 @@ public static partial class BuckleCommandLine {
             out var multipleExplains,
             out var sae,
             out var pendingReferenceCopies,
-            out var r2r
+            out var r2r,
+            out var noSubmissions
         );
 
         var compiler = new Compiler(state) {
@@ -160,7 +162,7 @@ public static partial class BuckleCommandLine {
             ResolveDiagnostics(diagnostics, processName, state);
 
             if (!state.noOut) {
-                using var repl = new BelteRepl(compiler, ResolveDiagnostics);
+                using var repl = new BelteRepl(compiler, ResolveDiagnostics, loadSubmissions: !noSubmissions);
                 repl.Run();
             }
 
@@ -1149,7 +1151,7 @@ public class {name} {{
         ignoreDiagnostic |= WarningExcluded(info, diagnosticOptions.excludeWarnings);
 
         if (!ignoreDiagnostic) {
-            if (info.module != "BU" || diagnostic is not BelteDiagnostic belteDiagnostic) {
+            if ((info.module is not null && info.module != "BU") || diagnostic is not BelteDiagnostic belteDiagnostic) {
                 Console.Write($"{me}: ");
                 DiagnosticFormatter.PrettyPrint(diagnostic, textColor);
             } else {
@@ -1169,12 +1171,12 @@ public class {name} {{
     }
 
     private static bool CheckWarningLevel(DiagnosticInfo info, int warningLevel) {
-        if (info.severity != DiagnosticSeverity.Warning)
+        if (info.severity != DiagnosticSeverity.Warning || info.code is null)
             return false;
 
         if (warningLevel == 0)
             return true;
-        else if (warningLevel == 1)
+        if (warningLevel == 1)
             return !WarningInWarningList(WarningLevel1, info);
         else if (warningLevel == 2)
             return !(WarningInWarningList(WarningLevel2, info) || WarningInWarningList(WarningLevel1, info));
@@ -1478,7 +1480,8 @@ public class {name} {{
         out bool multipleExplains,
         out bool saExit,
         out string[] pendingReferenceCopies,
-        out bool r2r) {
+        out bool r2r,
+        out bool noSubmissions) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -1542,6 +1545,7 @@ public class {name} {{
         state.includeSynthesizedCodeFile = false;
 
         var r2rl = false;
+        var noSubmissionsL = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1607,6 +1611,9 @@ public class {name} {{
                     break;
                 case "--clearsubmissions":
                     tempDialogs.clearSubmissions = true;
+                    break;
+                case "--nosubmissions":
+                    noSubmissionsL = true;
                     break;
                 case "--clearcache":
                     tempDialogs.clearCache = true;
@@ -1913,6 +1920,7 @@ public class {name} {{
         }
 
         r2r = r2rl;
+        noSubmissions = noSubmissionsL;
         saExit = sae;
 
         if (sae) {

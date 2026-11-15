@@ -13,6 +13,7 @@ Options:
 
   -r|--repl                   Invoke the Repl.
   --clearsubmissions          Delete all Repl submissions (does not evaluate submissions on startup).
+  --nosubmissions             Do not evaluate submissions on startup.
 
   -i                          Compile and run (default).
 

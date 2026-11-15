@@ -2,11 +2,13 @@
 namespace System;
 
 public class Exception {
+    private string? _message;
+
     public constructor() : this("Exception thrown") { }
 
     public constructor(string? message) {
-        this.message = message;
+        _message = message;
     }
 
-    public string? message;
+    public property string? Message => _message;
 }

@@ -4984,4 +4984,219 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Alias_AllowsMethod() {
+        var text = @"
+            using M = A.M;
+
+            public static class A {
+                public static void M() { }
+            }
+
+            M();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Alias_AllowsMethod2() {
+        var text = @"
+            using M = A.M;
+
+            public static class A {
+                public static void M() { }
+                public static void M(int a) { }
+            }
+
+            M();
+            M(2);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Alias_AllowsMethod3() {
+        var text = @"
+            global using M = A.M;
+
+            public static class A {
+                public static void M() { }
+                public static void M(int a) { }
+            }
+
+            M();
+            M(2);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Alias_AllowsMethodTemplate() {
+        var text = @"
+            using M = A.M<int>;
+
+            public class A {
+                public static void M<type T>() { }
+            }
+
+            M();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Alias_AllowsMethodTemplate2() {
+        var text = @"
+            using M = A.M;
+
+            public class A {
+                public static void M<type T>() { }
+            }
+
+            M<int>();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void CatchBlock_CapturesException() {
+        var text = @"
+            int code = 0;
+
+            try {
+                throw new System.Exception(""7"");
+            } catch (System.Exception e) {
+                code = (int)e.Message;
+            }
+
+            return code;
+        ";
+
+        AssertValue(text, 7);
+    }
+
+    [Fact]
+    public void Interpolation_NotTreatedAsMultiline() {
+        var text = @"
+            var id = 10;
+            var a = f""{id} "";
+            return a;
+        ";
+
+        AssertValue(text, "10 ");
+    }
+
+    [Fact]
+    public void ForwardDirective_ForwardsClass() {
+        var text = @"
+            namespace A {
+                forward static B;
+
+                public static class B {
+                    public static void M() { }
+                }
+            }
+
+            namespace P {
+                using A;
+
+                public static class Program {
+                    public static void Main() {
+                        M();
+                    }
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ForwardDirective_ForwardsNamespace() {
+        var text = @"
+            namespace A {
+                forward B;
+            }
+
+            namespace B {
+                public class C { }
+            }
+
+            namespace P {
+                using A;
+
+                public static class Program {
+                    public static void Main() {
+                        var a = new C();
+                    }
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ForwardDirective_ForwardsAlias() {
+        var text = @"
+            namespace A {
+                forward D = C;
+
+                public class C { }
+            }
+
+            namespace P {
+                using A;
+
+                public static class Program {
+                    public static void Main() {
+                        var a = new D();
+                    }
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ForwardDirective_PreventsCycleInGlobalUsing() {
+        var text = @"
+            global using A;
+
+            namespace A {
+                forward B;
+            }
+
+            namespace B { }
+
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

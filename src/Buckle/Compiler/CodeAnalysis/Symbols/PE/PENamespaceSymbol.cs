@@ -4,6 +4,8 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -17,6 +19,8 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
     private Dictionary<string, TypeDefinitionHandle> _lazyNoPiaLocalTypes;
     private ImmutableArray<NamedTypeSymbol> _lazyFlattenedTypes;
     private ImmutableArray<Symbol> _lazyFlattenedNamespacesAndTypes;
+    private ImmutableArray<NamespaceOrTypeAndForwardDirective> _lazyForwardNamespacesOrTypes;
+    private ImmutableArray<AliasAndForwardDirective> _lazyForwardAliases;
 
     // TODO Using containing assembly instead of module directly for better interop
     internal sealed override NamespaceExtent extent => new NamespaceExtent(containingPEModule.containingAssembly);
@@ -73,6 +77,76 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
             return ns;
 
         return null;
+    }
+
+    internal override ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyForwardNamespacesOrTypes.IsDefault) {
+            var assemblyAttributes = containingAssembly.GetAttributes();
+            var builder = ArrayBuilder<NamespaceOrTypeAndForwardDirective>.GetInstance();
+
+            foreach (var attribute in assemblyAttributes) {
+                if (!attribute.IsTargetAttribute(AttributeDescription.ForwardAttribute))
+                    continue;
+
+                var namespaceName = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+                if (namespaceName != ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat))
+                    continue;
+
+                var kind = attribute.GetConstructorArgument<byte>(1, SpecialType.UInt8);
+
+                if (kind == 0) {
+                    var target = attribute.GetConstructorArgument<string>(2, SpecialType.String);
+                    builder.Add(new NamespaceOrTypeAndForwardDirective(target, isType: false));
+                } else if (kind == 1) {
+                    var target = attribute.GetConstructorArgument<string>(2, SpecialType.String);
+                    builder.Add(new NamespaceOrTypeAndForwardDirective(target, isType: true));
+                }
+            }
+
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyForwardNamespacesOrTypes, builder.ToImmutableAndFree());
+        }
+
+        return _lazyForwardNamespacesOrTypes;
+    }
+
+    internal override ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyForwardAliases.IsDefault) {
+            var assemblyAttributes = containingAssembly.GetAttributes();
+            var builder = ArrayBuilder<AliasAndForwardDirective>.GetInstance();
+
+            foreach (var attribute in assemblyAttributes) {
+                if (!attribute.IsTargetAttribute(AttributeDescription.ForwardAttribute))
+                    continue;
+
+                var namespaceName = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+                if (namespaceName != ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat))
+                    continue;
+
+                var kind = attribute.GetConstructorArgument<byte>(1, SpecialType.UInt8);
+
+                if (kind == 2) {
+                    var target = attribute.GetConstructorArgument<string>(2, SpecialType.String);
+                    builder.Add(new AliasAndForwardDirective(target, isType: true));
+                } else if (kind == 3) {
+                    var target = attribute.GetConstructorArgument<string>(2, SpecialType.String);
+                    builder.Add(new AliasAndForwardDirective(target, isType: false));
+                }
+            }
+
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyForwardAliases, builder.ToImmutableAndFree());
+        }
+
+        return _lazyForwardAliases;
+    }
+
+    internal override ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        // This is only used for used imports tracking so we don't need it here
+        return [];
     }
 
     internal sealed override ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name) {

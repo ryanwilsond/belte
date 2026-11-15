@@ -14,21 +14,21 @@ public static class SourceHelpers {
     /// <summary>
     /// Turns a .NET Type into the corresponding Belte source code
     /// </summary>
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string TypeToSourceString(Type type) {
         var builder = new StringBuilder();
         TypeToSourceStringCore(builder, type, 0, null);
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string TypeToSourceString(Type type, byte[] nullableTransformFlags) {
         var builder = new StringBuilder();
         TypeToSourceStringCore(builder, type, 0, nullableTransformFlags);
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string TypeToSourceString(FieldInfo fieldInfo) {
         var builder = new StringBuilder();
         var nullableTransformFlags = GetNullableTransformFlags(fieldInfo.GetCustomAttributesData());
@@ -36,7 +36,7 @@ public static class SourceHelpers {
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string TypeToSourceString(ParameterInfo parameterInfo) {
         var builder = new StringBuilder();
         var nullableTransformFlags = GetNullableTransformFlags(parameterInfo.GetCustomAttributesData());
@@ -44,7 +44,7 @@ public static class SourceHelpers {
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string TypeToSourceString(PropertyInfo propertyInfo) {
         var builder = new StringBuilder();
         var nullableTransformFlags = GetNullableTransformFlags(propertyInfo.GetCustomAttributesData());
@@ -52,7 +52,7 @@ public static class SourceHelpers {
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string FieldToSourceString(FieldInfo fieldInfo) {
         var builder = new StringBuilder();
         var nullableTransformFlags = GetNullableTransformFlags(fieldInfo.GetCustomAttributesData());
@@ -62,7 +62,7 @@ public static class SourceHelpers {
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public static string ParameterToSourceString(ParameterInfo parameterInfo) {
         var builder = new StringBuilder();
         var nullableTransformFlags = GetNullableTransformFlags(parameterInfo.GetCustomAttributesData());
@@ -72,8 +72,10 @@ public static class SourceHelpers {
         return builder.ToString();
     }
 
-    [return: Belte.Nullability([1])]
-    public static Exception WithLocation([Belte.Nullability([1])] Exception exception, SimpleTextLocation location) {
+    [return: Belte.CompilerServices.Nullability([1])]
+    public static Exception WithLocation(
+        [Belte.CompilerServices.Nullability([1])] Exception exception,
+        SimpleTextLocation location) {
         return new Diagnostics.ExecException(exception, location);
     }
 
@@ -81,7 +83,7 @@ public static class SourceHelpers {
         byte[] nullableTransformFlags = null;
 
         foreach (var attribute in customAttributes) {
-            if (attribute.AttributeType.FullName == "Belte.NullabilityAttribute") {
+            if (attribute.AttributeType.FullName == "Belte.CompilerServices.NullabilityAttribute") {
                 if (attribute.ConstructorArguments[0].Value is IList<CustomAttributeTypedArgument> value) {
                     var length = value.Count;
                     nullableTransformFlags = new byte[length];

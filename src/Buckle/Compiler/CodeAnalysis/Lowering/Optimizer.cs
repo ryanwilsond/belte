@@ -14,20 +14,23 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriterWithStackGuard {
-    private readonly bool _isFirstPass;
+    private readonly bool _performPureMethodInlining;
+    private readonly Compilation _compilation;
 
     // TODO CSE/GVN on pure operations
     private bool _createdCompileTimeExpression = false;
 
-    private Optimizer(bool isFirstPass) {
-        _isFirstPass = isFirstPass;
+    private Optimizer(Compilation compilation, bool performPureMethodInlining) {
+        _performPureMethodInlining = performPureMethodInlining;
+        _compilation = compilation;
     }
 
     internal static BoundStatement Optimize(
+        Compilation compilation,
         BoundStatement statement,
         out bool createdCompileTimeExpression,
-        bool isFirstPass) {
-        var optimizer = new Optimizer(isFirstPass);
+        bool performPureMethodInlining) {
+        var optimizer = new Optimizer(compilation, performPureMethodInlining);
 
         var result = (BoundStatement)optimizer.Visit(statement);
         createdCompileTimeExpression = optimizer._createdCompileTimeExpression;
@@ -193,15 +196,8 @@ again:
         <left>
 
         */
-        var left = expression.left;
-        var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
-        // TODO Expand this to cover more cases
-        var canSimplify = left is BoundDataContainerExpression ld &&
-            right is BoundDataContainerExpression rd &&
-            ld.dataContainer.Equals(rd.dataContainer);
-
-        if (canSimplify)
-            return Visit(left);
+        if (DiagnosticPass.IsSameLocalOrField(expression.left, expression.right))
+            return Visit(expression.left);
 
         return base.VisitAssignmentOperator(expression);
     }
@@ -221,15 +217,8 @@ again:
         <left>
 
         */
-        var left = expression.left;
-        var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
-        // TODO Expand this to cover more cases
-        var canSimplify = left is BoundDataContainerExpression ld &&
-            right is BoundDataContainerExpression rd &&
-            ld.dataContainer.Equals(rd.dataContainer);
-
-        if (canSimplify)
-            return Visit(left);
+        if (DiagnosticPass.IsSameLocalOrField(expression.left, expression.right))
+            return Visit(expression.left);
 
         return base.VisitNullCoalescingAssignmentOperator(expression);
     }
@@ -239,16 +228,38 @@ again:
 
         <expression>[<index>]
 
-        ----> <index> is constant, return item directly
+        ----> <index> is constant
 
         (<expression>[<index>])
 
         */
-        if (expression.index.constantValue is null || expression.receiver is not BoundInitializerList i)
-            return base.VisitArrayAccessExpression(expression);
+        if (expression.index.constantValue is not null && expression.receiver is BoundInitializerList initializerList) {
+            var index = (int)expression.index.constantValue.value;
+            return Visit(initializerList.items[index]);
+        }
 
-        var index = (int)expression.index.constantValue.value;
-        return Visit(i.items[index]);
+        return base.VisitArrayAccessExpression(expression);
+    }
+
+    internal override BoundNode VisitArrayLength(BoundArrayLength node) {
+        /*
+
+        <expression>.Length
+
+        ----> <expression> is constant
+
+        <Length>
+
+        */
+        if (node.receiver is BoundInitializerList initializerList) {
+            Debug.Assert(node.type.specialType is SpecialType.Int64 or SpecialType.Int32 or SpecialType.Int);
+            if (node.type.specialType == SpecialType.Int32)
+                return Literal(_compilation, node.syntax, initializerList.items.Length, node.type);
+            else
+                return Literal(_compilation, node.syntax, (long)initializerList.items.Length, node.type);
+        }
+
+        return base.VisitArrayLength(node);
     }
 
     internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
@@ -291,7 +302,7 @@ again:
         $?<method>(<args>)
 
         */
-        if (!_isFirstPass && node.method.isPure) {
+        if (!_performPureMethodInlining && node.method.isPure) {
             var constArgs = true;
 
             foreach (var arg in node.arguments) {

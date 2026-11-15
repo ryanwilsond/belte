@@ -204,6 +204,10 @@ If compiling in a mode where the program would immediately run, the program is n
 
 Deletes Repl submissions. If used with *-r*, the submissions are deleted before the Repl evaluates them.
 
+### *--nosubmissions*
+
+Prevents loading or saving Repl submissions.
+
 ### *-d*, *--dotnet*
 
 Compile with .NET integration. The output will be a .NET DLL that can be used in a .NET project or ran depending on the

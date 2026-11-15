@@ -99,7 +99,7 @@ again:
 
             if (node.catchBody is not null) {
                 tryRegion.catchBlock = _currentBlock;
-                VisitBlock(node.catchBody);
+                VisitBlock(node.catchBody.body);
                 StartBlock();
             }
 

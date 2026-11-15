@@ -203,7 +203,11 @@ public enum SyntaxKind : ushort {
     ExpandKeyword,
     ExecKeyword,
     TypeKeyword,
-    LocationKeyword, // SyntaxFacts.LastKeyword
+    LocationKeyword,
+    ErrorKeyword,
+    WarningKeyword,
+    InfoKeyword,
+    ForwardKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -239,6 +243,7 @@ public enum SyntaxKind : ushort {
     TypeExpression,
     LocationExpression,
     LateIdentifierName,
+    DiagnosticExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -322,11 +327,13 @@ public enum SyntaxKind : ushort {
     DefaultSwitchLabel,
     MultiCaseSwitchLabel,
     CatchClause,
+    CatchClauseDeclaration,
     FinallyClause,
     ElseClause,
 
     // Directives
     UsingDirective,
+    ForwardDirective,
 
     // Declarations
     CompilationUnit,

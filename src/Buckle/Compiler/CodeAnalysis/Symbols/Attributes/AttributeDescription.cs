@@ -84,6 +84,7 @@ internal partial struct AttributeDescription {
     private static readonly byte[] Signature_HasThis_Void_SzArray_String = [(byte)SignatureAttributes.Instance, 1, Void, SzArray, String];
     private static readonly byte[] Signature_HasThis_Void_AttributeTargets = [(byte)SignatureAttributes.Instance, 1, Void, TypeHandle, (byte)TypeHandleTarget.AttributeTargets];
     private static readonly byte[] Signature_HasThis_Void_AttributeTargetsNative = [(byte)SignatureAttributes.Instance, 1, Void, TypeHandle, (byte)TypeHandleTarget.AttributeTargetsNative];
+    private static readonly byte[] Signature_HasThis_Void_String_Byte_String = [(byte)SignatureAttributes.Instance, 3, Void, String, Byte, String];
 
     private static readonly byte[][] Signatures_HasThis_Void_Only = [Signature_HasThis_Void];
     private static readonly byte[][] Signatures_HasThis_Void_String_Only = [Signature_HasThis_Void_String];
@@ -97,6 +98,7 @@ internal partial struct AttributeDescription {
     private static readonly byte[][] SignaturesOfFixedBufferAttribute = [Signature_HasThis_Void_Type_Int32];
     private static readonly byte[][] SignaturesOfTupleElementNamesAttribute = [Signature_HasThis_Void, Signature_HasThis_Void_SzArray_String];
     private static readonly byte[][] SignaturesOfNullabilityAttribute = [Signature_HasThis_Void_SzArray_Byte];
+    private static readonly byte[][] SignaturesOfForwardAttribute = [Signature_HasThis_Void_String_Byte_String];
 
     private static readonly byte[][] SignaturesOfAttributeUsage = [Signature_HasThis_Void_AttributeTargets];
     private static readonly byte[][] SignaturesOfAttributeUsageNative = [Signature_HasThis_Void_AttributeTargetsNative];
@@ -127,13 +129,14 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription UnmanagedAttribute = new AttributeDescription("", "UnmanagedAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription MustUseReturnValueAttribute = new AttributeDescription("", "MustUseReturnValueAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription TupleElementNamesAttribute = new AttributeDescription("System.Runtime.CompilerServices", "TupleElementNamesAttribute", SignaturesOfTupleElementNamesAttribute);
-    internal static readonly AttributeDescription PureAttribute = new AttributeDescription("Belte", "PureAttribute", Signatures_HasThis_Void_Only);
-    internal static readonly AttributeDescription NoThrowAttribute = new AttributeDescription("Belte", "NoThrowAttribute", Signatures_HasThis_Void_Only);
-    internal static readonly AttributeDescription NoAllocAttribute = new AttributeDescription("Belte", "NoAllocAttribute", Signatures_HasThis_Void_Only);
-    internal static readonly AttributeDescription NullabilityAttribute = new AttributeDescription("Belte", "NullabilityAttribute", SignaturesOfNullabilityAttribute);
-    internal static readonly AttributeDescription ConstMethodAttribute = new AttributeDescription("Belte", "ConstMethodAttribute", Signatures_HasThis_Void_Only);
-    internal static readonly AttributeDescription ConstParamAttribute = new AttributeDescription("Belte", "ConstParamAttribute", Signatures_HasThis_Void_Only);
-    internal static readonly AttributeDescription ConstExprParamAttribute = new AttributeDescription("Belte", "ConstExprParamAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription PureAttribute = new AttributeDescription("Belte.CompilerServices", "PureAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription NoThrowAttribute = new AttributeDescription("Belte.CompilerServices", "NoThrowAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription NoAllocAttribute = new AttributeDescription("Belte.CompilerServices", "NoAllocAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription NullabilityAttribute = new AttributeDescription("Belte.CompilerServices", "NullabilityAttribute", SignaturesOfNullabilityAttribute);
+    internal static readonly AttributeDescription ConstMethodAttribute = new AttributeDescription("Belte.CompilerServices", "ConstMethodAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription ConstParamAttribute = new AttributeDescription("Belte.CompilerServices", "ConstParamAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription ConstExprParamAttribute = new AttributeDescription("Belte.CompilerServices", "ConstExprParamAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription ConditionalAttribute = new AttributeDescription("System.Diagnostics", "ConditionalAttribute", Signatures_HasThis_Void_String_Only);
     internal static readonly AttributeDescription EntryTypeAttribute = new AttributeDescription("Belte", "EntryTypeAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription ForwardAttribute = new AttributeDescription("Belte.CompilerServices", "ForwardAttribute", SignaturesOfForwardAttribute);
 }

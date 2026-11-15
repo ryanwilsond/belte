@@ -46,6 +46,7 @@
 - [4.10](#410-interfaces) Interfaces
 - [4.11](#411-attributes) Attributes
 - [4.12](#412-non-template-constraints) Non-Template Constraints
+- [4.13](#413-forward-directives)
 
 ## 4.1 Classes
 
@@ -1555,7 +1556,7 @@ namespace A {
 
 ### 4.8.1 Aliasing
 
-An alias can be defined to allow referencing a type or namespace with another name, typically for brevity or clarity:
+An alias can be defined to allow referencing a symbol with another name, typically for brevity or clarity:
 
 ```belte
 using D = A.B.C.D;
@@ -1586,6 +1587,42 @@ using Num = int?;
 Num num1 = 0;
 // type is 'int!'
 Num! num2 = 0;
+```
+
+In addition to namespaces and types, aliases can be methods. Method aliases represent the entire method group:
+
+```belte
+using M = A.M;
+
+public static class A {
+  public static void M() { }
+  public static void M(int a) { }
+}
+
+M();
+M(10);
+```
+
+The alias method group can be constructed or unconstructed:
+
+```belte
+using M = A.M<int>;
+
+public static class A {
+  public static void M<type T>() { }
+}
+
+M();
+```
+
+```belte
+using M = A.M;
+
+public static class A {
+  public static void M<type T>() { }
+}
+
+M<int>();
 ```
 
 ### 4.8.3 Global Using Directive
@@ -1835,3 +1872,80 @@ void SafeDiv(int left, constexpr int right) where { right != 0; } {
 SafeDiv(10, 5); // Okay
 SafeDiv(10, 0); // Compile-time error
 ```
+
+## 4.13 Forward Directives
+
+Forward directives are very similar to [using directives](#48-using-directives), except instead of adding symbols to
+the scope they specify what symbols to add to the scope if the enclosing namespace is targeting by a using directive.
+Forward directives can be thought of as namespace exports.
+
+Forward directives can target namespaces, classes, or be aliases. Forward directives must be within an explicit
+namespace declaration (i.e. not allowed in the global namespace).
+
+For example:
+
+```belte
+namespace A {
+  forward B;
+}
+
+namespace B {
+  public class C { }
+}
+
+namespace P {
+  using A;
+
+  public static class Program {
+    public static void Main() {
+      var a = new C();
+    }
+  }
+}
+```
+
+In this example, namespace `P` does not explicitly target namespace `B` with a using directive, but it is implicitly
+added to scope by the `forward B;` directive inside of namespace `A` which is targeting by a using directive.
+
+```belte
+namespace A {
+  forward static B;
+
+  public static class B {
+    public static void M() { }
+  }
+}
+
+namespace P {
+  using A;
+
+  public static class Program {
+    public static void Main() {
+      M();
+    }
+  }
+}
+```
+
+As seen in the above example, classes can be forwarded by using `forward static` similar to
+[`using static`](#48-using-directives).
+
+```belte
+namespace A {
+  forward D = C;
+
+  public class C { }
+}
+
+namespace P {
+  using A;
+
+  public static class Program {
+    public static void Main() {
+      var a = new D();
+    }
+  }
+}
+```
+
+The above example shows forwarding an alias.

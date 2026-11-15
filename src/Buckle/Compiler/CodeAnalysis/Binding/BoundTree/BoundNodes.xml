@@ -11,6 +11,7 @@
   <ValueType Name="RefKind"/>
   <ValueType Name="ExpressionSyntax"/>
   <ValueType Name="Binder"/>
+  <ValueType Name="global::Diagnostics.DiagnosticSeverity"/>
   <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
   <AbstractNode Name="BoundEqualsValue" Base="BoundInitializer">
@@ -74,6 +75,11 @@
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </Node>
+  <Node Name="BoundDiagnosticExpression" Base="BoundExpression">
+    <Field Name="severity" Type="global::Diagnostics.DiagnosticSeverity"/>
+    <Field Name="message" Type="string"/>
+    <Field Name="prefixTarget" Type="BoundExpression?"/>
   </Node>
   <Node Name="BoundDup" Base="BoundExpression">
     <Field Name="refKind" Type="RefKind" Null="NotApplicable"/>
@@ -706,8 +712,14 @@
   </Node>
   <Node Name="BoundTryStatement" Base="BoundStatement">
     <Field Name="body" Type="BoundBlockStatement"/>
-    <Field Name="catchBody" Type="BoundBlockStatement?"/>
+    <Field Name="catchBody" Type="BoundCatchBlockStatement?"/>
     <Field Name="finallyBody" Type="BoundBlockStatement?"/>
+  </Node>
+  <Node Name="BoundCatchBlockStatement" Base="BoundStatement">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="exceptionSource" Type="BoundExpression?"/>
+    <Field Name="exceptionType" Type="TypeSymbol?"/>
+    <Field Name="body" Type="BoundBlockStatement"/>
   </Node>
   <Node Name="BoundWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

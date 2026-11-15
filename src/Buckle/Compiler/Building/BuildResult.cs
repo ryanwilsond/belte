@@ -4,13 +4,13 @@ namespace Buckle.Building;
 public sealed class BuildResult {
     public bool succeeded;
 
-    [Belte.Nullability([1, 1])]
+    [Belte.CompilerServices.Nullability([1, 1])]
     public string[] buildArguments;
 
-    [Belte.Nullability([1, 1])]
+    [Belte.CompilerServices.Nullability([1, 1])]
     public string[] programArguments;
 
-    [Belte.Nullability([1, 1])]
+    [Belte.CompilerServices.Nullability([1, 1])]
     public LocalBuildResult[] buildResults;
 
     public BuildResult(

@@ -147,4 +147,6 @@ internal enum BoundKind : byte {
     InsertStatement                             = 0x8D,
     UnconvertedLateIdentifierName               = 0x8E,
     LateIdentifierName                          = 0x8F,
+    DiagnosticExpression                        = 0x90,
+    CatchBlockStatement                         = 0x91,
 }

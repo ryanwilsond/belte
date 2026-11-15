@@ -40,6 +40,21 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
 
     internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
 
+    internal override ImmutableArray<CodeAnalysis.Binding.NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableArray<CodeAnalysis.Binding.AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableDictionary<string, CodeAnalysis.Binding.AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return GetNameToMembersMap().Flatten(LexicalOrderSymbolComparer.Instance);
     }

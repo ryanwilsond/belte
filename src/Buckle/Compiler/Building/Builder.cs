@@ -99,7 +99,7 @@ public sealed class Builder {
 
     public List<Builder> nestedBuilds { get; }
 
-    [return: Belte.Nullability([1])]
+    [return: Belte.CompilerServices.Nullability([1])]
     public Builder AddBuild() {
         if (!_isRootBuilder)
             throw new InvalidOperationException("Only the root builder can add new builds.");

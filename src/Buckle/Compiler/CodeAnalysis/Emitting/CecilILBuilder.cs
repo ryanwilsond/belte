@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -24,9 +26,6 @@ internal sealed partial class CecilILBuilder : ILBuilder {
     private readonly MethodSymbol _method;
     private readonly MethodDefinition _definition;
     private readonly Stack<TryFrame> _tryStack;
-    private readonly Dictionary<StringText, Document> _documents;
-
-    private Document _synthesizedCodeDocument;
 
     private SyntaxTree _lastSeqPointTree;
     private int _initialHiddenSequencePointMarker = -1;
@@ -50,7 +49,6 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
         _unhandledSwitches = [];
-        _documents = [];
         _localSlotManager = new CecilLocalSlotManager();
         _tryStack = new Stack<TryFrame>();
     }
@@ -75,9 +73,33 @@ internal sealed partial class CecilILBuilder : ILBuilder {
             Emit(CodeGeneration.OpCode.Ret);
         }
 
+        // TODO This performs some basic optimizations around useless gotos (should be expanded to handle more cases)
+        // Because the RefIL builder uses Reflection.Emit's builtin label resolution, it cannot perform these optimizations
         foreach (var (instructionIndex, target) in _unhandledGotos) {
             var targetLabel = target;
             var targetInstructionIndex = ((CecilLabelInfo)_labels[targetLabel]).targetInstructionIndex;
+
+            if (instructionIndex + 1 == targetInstructionIndex) {
+                /*
+
+                br label
+                label:
+
+                ---->
+
+                nop
+
+                */
+                // Already created a nop earlier so just reuse it
+                // Probably not significantly different for performance than recreating it
+                // TODO unfortunately this leaves a NOP in the body, but dealing with the instruction index offsets
+                // seems annoying, especially for the _unhandledSwitches
+                iLProcessor.Body.Instructions[instructionIndex] = (Instruction)iLProcessor.Body
+                    .Instructions[instructionIndex].Operand;
+
+                continue;
+            }
+
             var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
             var instructionFix = iLProcessor.Body.Instructions[instructionIndex];
             instructionFix.Operand = targetInstruction;
@@ -98,7 +120,33 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         }
 
         FixExceptionBranches();
+
+#if DEBUG
+        var lastOffset = -1;
+        var seenInstructions = new HashSet<Instruction>();
+
+        foreach (var sequencePoint in iLProcessor.Body.Method.DebugInformation.SequencePoints) {
+            var instructionOffset = GetOffset(sequencePoint);
+            var instruction = GetInstruction(ref instructionOffset);
+
+            Debug.Assert(seenInstructions.Add(instruction));
+            Debug.Assert(_module.documents.Values.Contains(sequencePoint.Document));
+
+            var offset = iLProcessor.Body.Instructions.IndexOf(instruction);
+            Debug.Assert(offset >= 0);
+            Debug.Assert(offset > lastOffset);
+            lastOffset = offset;
+        }
+#endif
     }
+
+#if DEBUG
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "offset")]
+    private static extern ref InstructionOffset GetOffset(SequencePoint sequencePoint);
+
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "instruction")]
+    private static extern ref Instruction GetInstruction(ref InstructionOffset instructionOffset);
+#endif
 
     private void FixExceptionBranches() {
         var indexes = new Dictionary<Instruction, int>();
@@ -186,24 +234,29 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         var lineOffset = 0;
 
         if (synthesizedCodePath is not null) {
-            if (_synthesizedCodeDocument is null) {
+            if (_module.synthesizedCodeDocument is null) {
                 var fullPath = Path.GetFullPath(synthesizedCodePath);
-                _synthesizedCodeDocument = new Document(fullPath);
+                Interlocked.CompareExchange(ref _module.synthesizedCodeDocument, new Document(fullPath), null);
             }
 
-            document = _synthesizedCodeDocument;
+            Debug.Assert(_module.synthesizedCodeDocument is not null);
+            document = _module.synthesizedCodeDocument;
             var node = ((CompoundTextLocation)syntaxTree.GetRoot().location).sourceNode.parent;
             // CodeGenerator.EmitSequencePoint checks for compound location and adds a preceding nop for us
             DefineSequencePoint(node.syntaxTree, node.location, instructionIndex - 1);
             lineOffset = _compilation.GetSynthesizedCodeLineOffset(node);
-        } else if (!_documents.TryGetValue(t, out document)) {
+        } else if (!_module.documents.TryGetValue(t, out document)) {
             var fullPath = Path.GetFullPath(t.fileName);
-            document = new Document(fullPath);
-            _documents.Add(t, document);
+            _module.documents.TryAdd(t, new Document(fullPath));
+            document = _module.documents[t];
         }
 
         if (_initialHiddenSequencePointMarker >= 0) {
-            var hiddenSequencePoint = new SequencePoint(instruction, document) {
+            Debug.Assert(iLProcessor.Body.Method.DebugInformation.SequencePoints.Count == 0);
+            Debug.Assert(instructionIndex == 1);
+            Debug.Assert(iLProcessor.Body.Instructions[0].OpCode.Code == Code.Nop);
+
+            var hiddenSequencePoint = new SequencePoint(iLProcessor.Body.Instructions[0], document) {
                 StartLine = HiddenLine,
                 EndLine = HiddenLine,
                 StartColumn = 0,
@@ -212,6 +265,13 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
             iLProcessor.Body.Method.DebugInformation.SequencePoints.Add(hiddenSequencePoint);
             _initialHiddenSequencePointMarker = -1;
+        }
+
+        if (endLine != startLine) {
+            // TODO This ensures sequence point spans aren't overlapping
+            // Is this the best way to handle this? Perhaps we should be more careful with syntax assignment during lowering
+            endLine = startLine;
+            endChar = t.GetLine(startLine + lineOffset).length;
         }
 
         var sequencePoint = new SequencePoint(instruction, document) {
@@ -225,7 +285,10 @@ internal sealed partial class CecilILBuilder : ILBuilder {
     }
 
     internal override void DefineInitialHiddenSequencePoint() {
+        Debug.Assert(_initialHiddenSequencePointMarker < 0);
+        Debug.Assert(iLProcessor.Body.Instructions.Count == 0);
         _initialHiddenSequencePointMarker = 0;
+        Emit(CodeGeneration.OpCode.Nop);
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode) {

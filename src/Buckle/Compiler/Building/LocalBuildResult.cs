@@ -10,7 +10,7 @@ public sealed class LocalBuildResult {
 
     public string[] arguments;
 
-    [Belte.Nullability([1, 1])]
+    [Belte.CompilerServices.Nullability([1, 1])]
     public DiagnosticQueue<Diagnostic> diagnostics;
 
     public LocalBuildResult(

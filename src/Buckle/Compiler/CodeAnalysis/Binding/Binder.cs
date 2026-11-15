@@ -85,6 +85,8 @@ internal partial class Binder {
 
     internal virtual ImmutableArray<AliasAndUsingDirective> usingAliases => [];
 
+    internal virtual ImmutableArray<AliasAndForwardDirective> forwardedAliases => [];
+
     internal virtual ImmutableArray<LabelSymbol> labels => [];
 
     internal virtual ImmutableArray<TokenSymbol> tokens => [];
@@ -201,7 +203,7 @@ internal partial class Binder {
             AccessCheck.IsSymbolAccessible(symbol, within, throughType);
     }
 
-    private protected void MarkImportDirective(SyntaxReference directive) {
+    private protected virtual void MarkImportDirective(SyntaxReference directive) {
         if (directive is not null)
             compilation.MarkImportDirectiveAsUsed(directive);
     }
@@ -569,6 +571,50 @@ internal partial class Binder {
         return UnwrapAlias(result, diagnostics, syntax, basesBeingResolved);
     }
 
+    internal Symbol BindNamespaceOrTypeOrMethodSymbol(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        out ImmutableArray<TypeOrConstant> templateArguments,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+        var tentativeResult = BindNamespaceOrTypeSymbol(syntax, tempDiagnostics, basesBeingResolved);
+
+        if (!tentativeResult.namespaceOrTypeSymbol.IsErrorSymbol() || syntax is not QualifiedNameSyntax qualifiedName) {
+            diagnostics.PushRangeAndFree(tempDiagnostics);
+            templateArguments = default;
+            return tentativeResult.namespaceOrTypeSymbol;
+        }
+
+        var tempDiagnostics2 = BelteDiagnosticQueue.GetInstance();
+
+        var left = CreateBoundNamespaceOrTypeExpression(
+            syntax,
+            BindNamespaceOrTypeSymbol(qualifiedName.left, diagnostics, basesBeingResolved).namespaceOrTypeSymbol
+        );
+
+        var result = BindMemberAccessWithBoundLeft(
+            syntax,
+            left,
+            qualifiedName.right,
+            qualifiedName.period,
+            called: false,
+            indexed: false,
+            tempDiagnostics2
+        );
+
+        if (result is not BoundMethodGroup methodGroup) {
+            tempDiagnostics2.Free();
+            diagnostics.PushRangeAndFree(tempDiagnostics);
+            templateArguments = default;
+            return tentativeResult.namespaceOrTypeSymbol;
+        }
+
+        tempDiagnostics.Free();
+        diagnostics.PushRangeAndFree(tempDiagnostics2);
+        templateArguments = methodGroup.templateArguments;
+        return methodGroup.methods[0];
+    }
+
     internal TypeWithAnnotations BindType(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
@@ -803,14 +849,14 @@ internal partial class Binder {
 
                 return new TypeWithAnnotations(
                     new ExtendedErrorTypeSymbol(
-                        left,
+                        (NamespaceOrTypeSymbol)left,
                         LookupResultKind.NotATypeOrNamespace,
                         error
                     )
                 );
             }
 
-            return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, left);
+            return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, (NamespaceOrTypeSymbol)left);
         }
     }
 
@@ -1199,7 +1245,7 @@ internal partial class Binder {
 
         // Prefer user-defined symbols over special types EXCEPT during template binding
         // ? The only reason we make this exception is to prevent infinite loops in binding
-        if (node.parent.parent.kind != SyntaxKind.TemplateParameterList) {
+        if (node.parent?.parent is null || node.parent.parent.kind != SyntaxKind.TemplateParameterList) {
             LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, node.location, true);
             performedLookup = true;
         }
@@ -5844,6 +5890,7 @@ internal partial class Binder {
 
     private protected void LookupSymbolInAliases(
         ImmutableDictionary<string, AliasAndUsingDirective> usingAliases,
+        ImmutableDictionary<string, AliasAndForwardDirective> forwardedAliases,
         Binder originalBinder,
         LookupResult result,
         string name,
@@ -5867,7 +5914,24 @@ internal partial class Binder {
                 MarkImportDirective(alias.usingDirectiveReference);
 
             result.MergeEqual(res);
-        }
+        } else
+            // TODO Prefer usings over forwards?
+            if (forwardedAliases.TryGetValue(name, out var forward)) {
+                var res = originalBinder.CheckViability(
+                    forward.alias,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    errorLocation,
+                    basesBeingResolved
+                );
+
+                if (res.kind == LookupResultKind.Viable)
+                    MarkImportDirective(forward.forwardDirectiveReference);
+
+                result.MergeEqual(res);
+            }
     }
 
     private protected bool IsUsingAlias(ImmutableDictionary<string, AliasAndUsingDirective> usingAliases, string name) {
@@ -5879,12 +5943,38 @@ internal partial class Binder {
         return false;
     }
 
+    private protected bool IsForwardedAlias(
+        ImmutableDictionary<string, AliasAndForwardDirective> forwardedAliases,
+        string name) {
+        if (forwardedAliases.TryGetValue(name, out var node)) {
+            MarkImportDirective(node.forwardDirectiveReference);
+            return true;
+        }
+
+        return false;
+    }
+
     private protected void AddLookupSymbolsInfoInAliases(
         ImmutableDictionary<string, AliasAndUsingDirective> usingAliases,
+        ImmutableDictionary<string, AliasAndForwardDirective> forwardedAliases,
         LookupSymbolsInfo result,
         LookupOptions options,
         Binder originalBinder) {
         foreach (var pair in usingAliases) {
+            var aliasSymbol = pair.Value.alias;
+            var targetSymbol = aliasSymbol.GetAliasTarget(basesBeingResolved: null);
+
+            if (originalBinder.CanAddLookupSymbolInfo(
+                targetSymbol,
+                options,
+                result,
+                accessThroughType: null,
+                aliasSymbol: aliasSymbol)) {
+                result.AddSymbol(aliasSymbol, aliasSymbol.name, 0);
+            }
+        }
+
+        foreach (var pair in forwardedAliases) {
             var aliasSymbol = pair.Value.alias;
             var targetSymbol = aliasSymbol.GetAliasTarget(basesBeingResolved: null);
 
@@ -7140,7 +7230,7 @@ symIsHidden:;
             (unwrappedSymbol is not TypeSymbol && IsInstance(unwrappedSymbol) ||
             !(unwrappedSymbol.isAbstract || unwrappedSymbol.isVirtual))) {
             return LookupResult.Empty();
-        } else if (WrongArity(symbol, arity, diagnose, options, errorLocation, out var error)) {
+        } else if (WrongArity(symbol, arity, diagnose, options, errorLocation, unwrappedSymbol, out var error)) {
             return LookupResult.WrongArity(symbol, error);
         } else if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 &&
             unwrappedSymbol is not NamespaceOrTypeSymbol) {
@@ -7189,6 +7279,7 @@ symIsHidden:;
         bool diagnose,
         LookupOptions options,
         TextLocation errorLocation,
+        Symbol aliasTarget,
         out BelteDiagnostic error) {
         switch (symbol.kind) {
             case SymbolKind.NamedType:
@@ -7260,6 +7351,19 @@ symIsHidden:;
                             }
                         }
 
+                        return true;
+                    }
+                }
+
+                break;
+            case SymbolKind.Alias: {
+                    if (aliasTarget.kind != SymbolKind.Method)
+                        goto default;
+
+                    var alias = (AliasSymbol)symbol;
+
+                    if (!alias.templateArguments.IsDefaultOrEmpty && arity != 0) {
+                        error = diagnose ? Error.TemplateNotAllowedAlias(errorLocation, symbol) : null;
                         return true;
                     }
                 }

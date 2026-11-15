@@ -316,7 +316,12 @@ internal static class Warning {
 
     internal static BelteDiagnostic LocalCouldBeConstExpr(TextLocation location, string name) {
         var message = $"local '{name}' could be marked 'constexpr'";
-        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeFinal, location, message);
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeConstExpr, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryForward(TextLocation location, Symbol forward, Symbol symbol) {
+        var message = $"forward directive is unnecessary because '{forward}' is a direct namespace member of '{symbol}'";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryForward, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

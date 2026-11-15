@@ -56,6 +56,13 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
         return this;
     }
 
+    internal bool IsErrorSymbol() {
+        if (this is TypeSymbol t)
+            return t.IsErrorType();
+
+        return this is MissingNamespaceSymbol;
+    }
+
     internal virtual NamedTypeSymbol LookupMetadataType(ref MetadataTypeName emittedTypeName) {
         var scope = this;
 

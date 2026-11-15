@@ -33,7 +33,8 @@ public sealed class SymbolDisplayFormat {
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions:
             SymbolDisplayMiscellaneousOptions.IncludePropertyBody |
-            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
+            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword |
+            SymbolDisplayMiscellaneousOptions.UnwrapAliases
     );
 
     public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(
@@ -94,7 +95,8 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions:
             SymbolDisplayMiscellaneousOptions.IncludeKeywords |
             SymbolDisplayMiscellaneousOptions.IncludeBaseList |
-            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
+            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword |
+            SymbolDisplayMiscellaneousOptions.UnwrapAliases
     );
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
@@ -105,7 +107,8 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions:
             SymbolDisplayMiscellaneousOptions.IncludeKeywords |
             SymbolDisplayMiscellaneousOptions.IncludeBaseList |
-            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
+            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword |
+            SymbolDisplayMiscellaneousOptions.UnwrapAliases
     );
 
     private SymbolDisplayFormat(

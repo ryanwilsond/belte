@@ -72,6 +72,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), elements, endOfFile);
     }
 
+    internal NameSyntax ParseName() {
+        return ParseWithStackGuard(
+            static @this => @this.ParseQualifiedName(),
+            static @this => SyntaxFactory.EmptyName()
+        );
+    }
+
     internal TNode ParseWithStackGuard<TNode>(
         Func<LanguageParser, TNode> parseFunc,
         Func<LanguageParser, TNode> createEmptyNodeFunc) where TNode : BelteSyntaxNode {
@@ -158,6 +165,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private bool IsPossibleNamespaceMemberDeclaration() {
         switch (currentToken.kind) {
             case SyntaxKind.UsingKeyword:
+            case SyntaxKind.ForwardKeyword:
             case SyntaxKind.NamespaceKeyword:
                 return true;
             default:
@@ -261,6 +269,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.UsingDirective(globalKeyword, keyword, staticKeyword, alias, namespaceOrType, semicolon);
     }
 
+    private ForwardDirectiveSyntax ParseForwardDirective() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.ForwardDirective)
+            return (ForwardDirectiveSyntax)EatNode();
+
+        var keyword = Match(SyntaxKind.ForwardKeyword);
+        var staticKeyword = EatIfMatch(SyntaxKind.StaticKeyword);
+        var alias = IsNamedAssignment() ? ParseNameEquals() : null;
+        var namespaceOrType = alias is null ? ParseQualifiedName() : ParseType(allowNoFollowUp: true);
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.ForwardDirective(keyword, staticKeyword, alias, namespaceOrType, semicolon);
+    }
+
     private bool IsNamedAssignment() {
         return currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.EqualsToken;
     }
@@ -276,7 +296,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         bool isGlobal = false) {
         var elements = _pool.Allocate<NamespaceElementSyntax>();
 
-        var seenAfterUsings = false;
+        var seenAfterDirectives = false;
 
         var savedTerminatorState = _terminatorState;
         _terminatorState |= TerminatorState.IsNamespaceMemberStartOrStop;
@@ -291,14 +311,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (PeekIsUsingDirective()) {
                 var usingDirective = ParseUsingDirective();
 
-                if (seenAfterUsings && (usingDirective.alias is null || usingDirective.globalKeyword is not null))
-                    usingDirective = AddDiagnostic(usingDirective, Error.UsingAfterMembers());
+                if (seenAfterDirectives && (usingDirective.alias is null || usingDirective.globalKeyword is not null))
+                    usingDirective = AddDiagnostic(usingDirective, Error.DirectiveAfterMembers());
 
                 elements.Add(usingDirective);
+            } else if (currentToken.kind == SyntaxKind.ForwardKeyword) {
+                var forwardDirective = ParseForwardDirective();
+
+                if (seenAfterDirectives && forwardDirective.alias is null)
+                    forwardDirective = AddDiagnostic(forwardDirective, Error.DirectiveAfterMembers());
+
+                elements.Add(forwardDirective);
             } else if (kind == SyntaxKind.EndOfFileToken || kind == closeKind) {
                 break;
             } else {
-                seenAfterUsings = true;
+                seenAfterDirectives = true;
                 var member = ParseMember(allowGlobalStatements: isGlobal);
                 elements.Add(member);
             }
@@ -2440,9 +2467,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return null;
 
         var keyword = EatToken();
+        var declaration = currentToken.kind == SyntaxKind.OpenParenToken ? ParseCatchClauseDeclaration() : null;
         var body = ParseBlockStatement();
 
-        return SyntaxFactory.CatchClause(keyword, (BlockStatementSyntax)body);
+        return SyntaxFactory.CatchClause(keyword, declaration, body);
+    }
+
+    private CatchClauseDeclarationSyntax ParseCatchClauseDeclaration() {
+        var openParen = MatchOpenParen();
+        var type = ParseType(allowRef: false);
+        var identifier = EatIfMatch(SyntaxKind.IdentifierToken);
+        var closeParen = MatchCloseParen();
+        return SyntaxFactory.CatchClauseDeclaration(openParen, type, identifier, closeParen);
     }
 
     private FinallyClauseSyntax ParseFinallyClause() {
@@ -2452,7 +2488,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var body = ParseBlockStatement();
 
-        return SyntaxFactory.FinallyClause(keyword, (BlockStatementSyntax)body);
+        return SyntaxFactory.FinallyClause(keyword, body);
     }
 
     private StatementSyntax ParseReturnStatement() {
@@ -3351,6 +3387,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.DeferKeyword:
             case SyntaxKind.TryKeyword:
             case SyntaxKind.UsingKeyword:
+            case SyntaxKind.ForwardKeyword:
             case SyntaxKind.WhileKeyword:
             case SyntaxKind.ReverseKeyword:
             case SyntaxKind.CommitKeyword:
@@ -3561,7 +3598,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     var openParen = MatchOpenParen();
                     var expression = ParseExpression();
                     var closeParen = MatchCloseParen();
-                    return SyntaxFactory.CodeStrExpression(operatorToken, codeKeyword, openParen, expression, closeParen);
+
+                    return SyntaxFactory.CodeStrExpression(
+                        operatorToken,
+                        codeKeyword,
+                        openParen,
+                        expression,
+                        closeParen
+                    );
                 }
             case SyntaxKind.ExecKeyword: {
                     var execKeyword = ConvertToKeyword(EatToken());
@@ -3580,6 +3624,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.LocationKeyword: {
                     var locationKeyword = ConvertToKeyword(EatToken());
                     return SyntaxFactory.LocationExpression(operatorToken, locationKeyword);
+                }
+            case SyntaxKind.ErrorKeyword:
+            case SyntaxKind.WarningKeyword:
+            case SyntaxKind.InfoKeyword: {
+                    var severityKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var expression = ParseExpression();
+                    var closeParen = MatchCloseParen();
+                    var prefixTarget = IsPossibleExpression(allowBinaryAndAssignment: true) ? ParseExpression() : null;
+
+                    return SyntaxFactory.DiagnosticExpression(
+                        operatorToken,
+                        severityKeyword,
+                        openParen,
+                        expression,
+                        closeParen,
+                        prefixTarget
+                    );
                 }
             default:
                 var operand = ParseOperatorExpression(precedence);
@@ -5027,7 +5089,7 @@ done:
         var shouldTreatAsMultiline = false;
         var leadingWhitespace = 0;
 
-        if (hasCloseQuote && groups.Length > 1) {
+        if (isMultiline && hasCloseQuote && groups.Length > 1) {
             var lastGroups = groups[^1];
 
             if (lastGroups.Length == 1 && lastGroups[0].kind == SyntaxKind.StringLiteralToken) {

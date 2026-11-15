@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -45,6 +46,15 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
     }
 
     internal virtual ImmutableArray<NamespaceSymbol> constituentNamespaces => [this];
+
+    internal abstract ImmutableArray<NamespaceOrTypeAndForwardDirective> GetForwardNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved);
+
+    internal abstract ImmutableArray<AliasAndForwardDirective> GetForwardAliases(
+        ConsList<TypeSymbol> basesBeingResolved);
+
+    internal abstract ImmutableDictionary<string, AliasAndForwardDirective> GetForwardAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved);
 
     internal abstract ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name);
 

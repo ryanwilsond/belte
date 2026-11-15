@@ -43,6 +43,8 @@ public sealed partial class BelteRepl : Repl {
             ("Traffic Stop", "Jason Pelkey", new TrafficStopTheme()),
         ];
 
+    private readonly bool _saveSubmissions;
+
     private List<TextChange> _changes = new List<TextChange>();
     private int _submissionCounter;
     private DiagnosticHandle _diagnosticHandle;
@@ -54,13 +56,14 @@ public sealed partial class BelteRepl : Repl {
     /// </summary>
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
-    public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
+    public BelteRepl(Compiler handle, DiagnosticHandle errorHandle, bool loadSubmissions = true) : base(handle) {
         handle.state.diagnosticOptions.warningLevel = 2;
         handle.state.diagnosticOptions.severity = DiagnosticSeverity.All;
 
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
+        _saveSubmissions = loadSubmissions;
         var diagnostics = LoadLibraries();
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
@@ -69,7 +72,7 @@ public sealed partial class BelteRepl : Repl {
         if (diagnostics.AnyErrors()) {
             handle.AddLibraryErrors(diagnostics);
             errorHandle(handle, "repl");
-        } else {
+        } else if (loadSubmissions) {
             LoadSubmissions();
         }
     }
@@ -506,7 +509,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private void SaveSubmission(string text) {
-        if (state.loadingSubmissions)
+        if (state.loadingSubmissions || !_saveSubmissions)
             return;
 
         var submissionsFolder = GetSubmissionsDirectory();

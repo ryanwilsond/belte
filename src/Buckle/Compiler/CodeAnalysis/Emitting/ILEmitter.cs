@@ -76,6 +76,9 @@ internal partial class ILEmitter : ModuleBuilder {
 
     private int _nullabilityAttributeFailedToEmit;
 
+    internal Document synthesizedCodeDocument;
+    internal readonly ConcurrentDictionary<StringText, Document> documents = [];
+
     private protected ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
@@ -297,7 +300,7 @@ internal partial class ILEmitter : ModuleBuilder {
         var timer = _time ? Stopwatch.StartNew() : null;
 
         // This has to be done after main emit phase in case the attribute definition is in this assembly
-        EmitMetadataAttribute();
+        EmitAssemblyAttributes();
 
         if (!_compilation.options.enableOutput)
             return;
@@ -346,6 +349,11 @@ internal partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private void EmitAssemblyAttributes() {
+        EmitMetadataAttribute();
+        EmitForwardAttributes();
+    }
+
     private void EmitMetadataAttribute() {
         var metadataAttribute = _compilation
             .GetWellKnownType(WellKnownType.Belte_CompilerServices_BelteMetadataAttribute);
@@ -370,6 +378,99 @@ internal partial class ILEmitter : ModuleBuilder {
         );
 
         _assemblyDefinition.CustomAttributes.Add(attribute);
+    }
+
+    private void EmitForwardAttributes() {
+        var forwardAttribute = _compilation
+            .GetWellKnownType(WellKnownType.Belte_CompilerServices_ForwardAttribute);
+
+        if (forwardAttribute.IsErrorType()) {
+            _diagnostics.Push(Warning.FailedToEmitAttribute(null, forwardAttribute));
+            return;
+        }
+
+        var attributeType = Resolve(GetType(forwardAttribute, import: false));
+
+        var formatAttributeCtor = _assemblyDefinition.MainModule.ImportReference(
+            attributeType.GetConstructors().Single(c => c.Parameters.Count == 3)
+        );
+
+        var allSymbols = _compilation.GetSymbols();
+
+        foreach (Symbol symbol in allSymbols) {
+            if (symbol is NamespaceSymbol namespaceSymbol && symbol.IsFromCompilation(_compilation))
+                EmitForwardAttribute(namespaceSymbol, formatAttributeCtor);
+        }
+    }
+
+    private void EmitForwardAttribute(NamespaceSymbol namespaceSymbol, MethodReference formatAttributeCtor) {
+        var forwards = namespaceSymbol.GetForwardNamespacesOrTypes(basesBeingResolved: null);
+        var forwardAliases = namespaceSymbol.GetForwardAliases(basesBeingResolved: null);
+
+        if (forwards.Length == 0 && forwardAliases.Length == 0)
+            return;
+
+        if (namespaceSymbol.GetMembers().Length == 0) {
+            // We need to emit a dummy symbol so the PE reader sees this as an existing namespace
+            var dummyType = new TypeDefinition(
+                namespaceSymbol.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat),
+                "<ForwardDummyType>",
+                TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.NotPublic,
+                _specialTypes[SpecialType.Object]
+            );
+
+            _assemblyDefinition.MainModule.Types.Add(dummyType);
+        }
+
+        foreach (var forward in forwards) {
+            var attribute = new CustomAttribute(formatAttributeCtor);
+
+            var namespaceName = namespaceSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
+            attribute.ConstructorArguments.Add(
+                new CustomAttributeArgument(
+                    _specialTypes[SpecialType.String],
+                    namespaceName
+                )
+            );
+
+            var kind = forward.namespaceOrType.isNamespace ? (byte)0 : (byte)1;
+            attribute.ConstructorArguments.Add(new CustomAttributeArgument(_specialTypes[SpecialType.UInt8], kind));
+
+            var target = forward.namespaceOrType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
+            attribute.ConstructorArguments.Add(
+                new CustomAttributeArgument(
+                    _specialTypes[SpecialType.String],
+                    target
+                )
+            );
+
+            _assemblyDefinition.CustomAttributes.Add(attribute);
+        }
+
+        foreach (var alias in forwardAliases) {
+            var attribute = new CustomAttribute(formatAttributeCtor);
+
+            var namespaceName = namespaceSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
+            attribute.ConstructorArguments.Add(
+                new CustomAttributeArgument(
+                    _specialTypes[SpecialType.String],
+                    namespaceName
+                )
+            );
+
+            var kind = alias.alias.target.kind == SymbolKind.Method ? (byte)3 : (byte)2;
+            attribute.ConstructorArguments.Add(new CustomAttributeArgument(_specialTypes[SpecialType.UInt8], kind));
+
+            var target = alias.alias.target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
+            attribute.ConstructorArguments.Add(
+                new CustomAttributeArgument(
+                    _specialTypes[SpecialType.String],
+                    $"{alias.alias.name};{target}"
+                )
+            );
+
+            _assemblyDefinition.CustomAttributes.Add(attribute);
+        }
     }
 
     private void EmitRuntimeConfig(string outputPath) {
@@ -1229,16 +1330,16 @@ internal partial class ILEmitter : ModuleBuilder {
         AddCustomAttributes(methodDefinition.CustomAttributes, method.GetAttributes());
 
         if (method.isPure)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_PureAttribute);
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_CompilerServices_PureAttribute);
 
         if (method.isNoThrow)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoThrowAttribute);
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_CompilerServices_NoThrowAttribute);
 
         if (method.isNoAlloc)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoAllocAttribute);
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_CompilerServices_NoAllocAttribute);
 
         if (method.isDeclaredConst)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_ConstMethodAttribute);
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_CompilerServices_ConstMethodAttribute);
 
         for (var i = 0; i < method.arity; i++) {
             var templateParameter = method.templateParameters[i];
@@ -1259,10 +1360,10 @@ internal partial class ILEmitter : ModuleBuilder {
             AddCustomAttributes(parameterDefinition.CustomAttributes, parameter.GetAttributes());
 
             if (parameter.isConst)
-                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_ConstParamAttribute);
+                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_CompilerServices_ConstParamAttribute);
 
             if (parameter.isConstExpr)
-                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_ConstExprParamAttribute);
+                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_CompilerServices_ConstExprParamAttribute);
 
             if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location))
                 parameterDefinition.CustomAttributes.Add(CreateNullabilityAttribute(parameter.type));
@@ -1895,7 +1996,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         if ((bool)sawNonNullableReferenceType) {
             if (flag == (int)ThreeState.Unknown) {
-                var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+                var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_CompilerServices_NullabilityAttribute);
 
                 var val = nullabilityAttribute.IsErrorType() ? (int)ThreeState.True : (int)ThreeState.False;
 
@@ -1925,7 +2026,7 @@ internal partial class ILEmitter : ModuleBuilder {
     private CustomAttribute CreateNullabilityAttribute(TypeSymbol type) {
         Debug.Assert(Volatile.Read(ref _nullabilityAttributeFailedToEmit) == (int)ThreeState.False);
 
-        var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+        var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_CompilerServices_NullabilityAttribute);
 
         Debug.Assert(!nullabilityAttribute.IsErrorType());
 

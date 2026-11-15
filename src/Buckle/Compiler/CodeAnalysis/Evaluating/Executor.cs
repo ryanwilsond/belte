@@ -435,7 +435,10 @@ internal sealed partial class Executor : ModuleBuilder {
         type.VisitType(VisitTypePredicate, sawNonNullableReferenceType, canDigThroughNullable: false);
 
         if ((bool)sawNonNullableReferenceType) {
-            var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+            var nullabilityAttribute = _compilation.GetWellKnownType(
+                WellKnownType.Belte_CompilerServices_NullabilityAttribute
+            );
+
             var val = nullabilityAttribute.IsErrorType() ? (int)ThreeState.True : (int)ThreeState.False;
             // TODO Failure to emit diagnostic?
             return val != (int)ThreeState.True;
@@ -1104,16 +1107,20 @@ internal sealed partial class Executor : ModuleBuilder {
         var method = pair.Key;
 
         if (TypeNeedsNullabilityAttribute(method.returnType, method.location)) {
-            methodBuilder.DefineParameter(0, ParameterAttributes.None, null)
-                .SetCustomAttribute(CreateNullabilityAttribute(method.returnType));
+            var attribute = CreateNullabilityAttribute(method.returnType);
+
+            if (attribute is not null)
+                methodBuilder.DefineParameter(0, ParameterAttributes.None, null).SetCustomAttribute(attribute);
         }
 
         for (var i = 0; i < method.parameterCount; i++) {
             var parameter = method.parameters[i];
 
             if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location)) {
-                methodBuilder.DefineParameter(i + 1, ParameterAttributes.None, null)
-                    .SetCustomAttribute(CreateNullabilityAttribute(parameter.type));
+                var attribute = CreateNullabilityAttribute(parameter.type);
+
+                if (attribute is not null)
+                    methodBuilder.DefineParameter(i + 1, ParameterAttributes.None, null).SetCustomAttribute(attribute);
             }
         }
     }
@@ -1124,16 +1131,24 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var field = pair.Key;
 
-        if (TypeNeedsNullabilityAttribute(field.type, field.location))
-            fieldBuilder.SetCustomAttribute(CreateNullabilityAttribute(field.type));
+        if (TypeNeedsNullabilityAttribute(field.type, field.location)) {
+            var attribute = CreateNullabilityAttribute(field.type);
+
+            if (attribute is not null)
+                fieldBuilder.SetCustomAttribute(attribute);
+        }
     }
 
     private void CreatePropertyMetadata(KeyValuePair<PropertySymbol, PropertyBuilder> pair) {
         var property = pair.Key;
         var propertyBuilder = pair.Value;
 
-        if (TypeNeedsNullabilityAttribute(property.type, property.location))
-            propertyBuilder.SetCustomAttribute(CreateNullabilityAttribute(property.type));
+        if (TypeNeedsNullabilityAttribute(property.type, property.location)) {
+            var attribute = CreateNullabilityAttribute(property.type);
+
+            if (attribute is not null)
+                propertyBuilder.SetCustomAttribute(attribute);
+        }
 
         if (property.getMethod is not null)
             propertyBuilder.SetGetMethod((MethodBuilder)_methods[property.getMethod]);
@@ -1143,11 +1158,18 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private CustomAttributeBuilder CreateNullabilityAttribute(TypeSymbol type) {
-        var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+        var nullabilityAttribute = _compilation.GetWellKnownType(
+            WellKnownType.Belte_CompilerServices_NullabilityAttribute
+        );
 
         Debug.Assert(!nullabilityAttribute.IsErrorType());
 
         var attributeType = GetType(nullabilityAttribute);
+
+        // Shouldn't happen but better to be defensive here
+        if (attributeType is null)
+            return null;
+
         var attributeCtor = attributeType.GetConstructors().Single(c => c.GetParameters().Length == 1);
         return new CustomAttributeBuilder(attributeCtor, [EncodeNullability(type)]);
 

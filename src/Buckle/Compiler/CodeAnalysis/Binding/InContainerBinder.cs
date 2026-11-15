@@ -57,7 +57,7 @@ internal class InContainerBinder : Binder {
             if (result.isMultiViable) {
                 if (arity == 0) {
                     if (next is WithUsingAliasesBinder withUsingAliases &&
-                        withUsingAliases.IsUsingAlias(name, basesBeingResolved)) {
+                        withUsingAliases.IsAlias(name, basesBeingResolved)) {
                         var error = Error.ConflictingAliasAndMember(container.location, name, container);
                         var errorType = new ExtendedErrorTypeSymbol(
                             containingSymbol: null,
